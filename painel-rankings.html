@@ -1,12 +1,329 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Painel de Rankings | Gamificacao Total</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rankings | Estacao da Aprendizagem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<style>
+:root{
+  --orange:#f5821f;--green:#3cb462;--blue:#29abe2;
+  --navy:#10122b;--navy2:#181b3a;--navy3:#1e2248;
+  --white:#ffffff;--light:#f4f6fb;--gray:#e0e4ed;
+  --text:#10122b;--muted:#6b7280;--danger:#dc2626;
+  --r:12px;--shadow:0 10px 30px rgba(16,18,43,.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito',sans-serif;background:var(--light);color:var(--text);min-height:100vh}
+.topbar{background:var(--navy);color:var(--white);padding:16px 20px;border-bottom:4px solid var(--orange)}
+.topbar-inner{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.brand h1{font-family:'Barlow Condensed',sans-serif;font-size:1.9rem;line-height:1;color:var(--white)}
+.brand p{color:#9bdcf5;font-size:.88rem;margin-top:4px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{border:2px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;border-radius:999px;padding:9px 14px;font-weight:800;cursor:pointer}
+.tab.active{background:var(--orange);border-color:var(--orange)}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 16px 36px}
+.toolbar{display:grid;grid-template-columns:minmax(220px,1fr) minmax(180px,260px);gap:12px;margin-bottom:16px}
+.input,.select{width:100%;border:2px solid var(--gray);border-radius:var(--r);padding:12px 14px;font:inherit;background:#fff}
+.input:focus,.select:focus{outline:none;border-color:var(--orange)}
+.grid{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start}
+.panel{background:#fff;border:1px solid var(--gray);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.panel-head{padding:14px 16px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.panel-head h2{font-size:1rem}
+.list{display:flex;flex-direction:column;max-height:70vh;overflow:auto}
+.game-btn{border:0;background:#fff;text-align:left;padding:13px 14px;border-bottom:1px solid var(--gray);cursor:pointer;font:inherit}
+.game-btn:hover,.game-btn.active{background:#fff6ed}
+.game-btn b{display:block;color:var(--navy);font-size:.93rem}
+.game-btn span{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+.content{min-height:420px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;background:#fff}
+th{background:#f8fafc;color:#475569;text-transform:uppercase;letter-spacing:.04em;font-size:.75rem;text-align:left}
+td,th{padding:10px 12px;border-bottom:1px solid var(--gray);vertical-align:middle;white-space:nowrap}
+td:first-child,th:first-child{text-align:center}
+tr.hidden-row td{background:#fef2f2;color:#991b1b}
+.badge{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:3px 9px;font-size:.76rem;font-weight:800}
+.badge-ok{background:#dcfce7;color:#166534}
+.badge-off{background:#fee2e2;color:#991b1b}
+.btn{border:0;border-radius:10px;padding:8px 10px;font:inherit;font-size:.8rem;font-weight:800;cursor:pointer}
+.btn-primary{background:var(--orange);color:#fff}
+.btn-secondary{background:var(--gray);color:var(--navy)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.login{max-width:420px;margin:34px auto}
+.login .body{padding:18px}
+.body{padding:16px}
+.blocked-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.blocked-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--gray);border-radius:10px;background:#fff}
+.notice{background:#ecfeff;border:1px solid #a5f3fc;color:#155e75;border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:.9rem}
+.hide{display:none!important}
+@media(max-width:780px){
+  .toolbar,.grid{grid-template-columns:1fr}
+  .list{max-height:none}
+  td,th{font-size:.85rem}
+}
+</style>
 </head>
 <body>
-  <h1>Painel de Rankings</h1>
-  <p>Arquivo temporario. Substitua este conteudo pelo painel-rankings.html final.</p>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <h1>Estacao da Aprendizagem</h1>
+      <p>Rankings dos jogos da Gamificacao Total</p>
+    </div>
+    <nav class="tabs">
+      <button class="tab active" id="tabPublic" onclick="setMode('public')">Rankings</button>
+      <button class="tab" id="tabTeacher" onclick="setMode('teacher')">Professor</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="publicArea">
+    <div class="toolbar">
+      <input class="input" id="publicSearch" placeholder="Buscar por nome, turma ou jogo" oninput="renderRanking()">
+      <select class="select" id="publicGameSelect" onchange="selectGame(this.value)"></select>
+    </div>
+    <div class="grid">
+      <aside class="panel">
+        <div class="panel-head"><h2>Jogos</h2><span id="gameCount">0</span></div>
+        <div class="list" id="gameList"></div>
+      </aside>
+      <section class="panel content">
+        <div class="panel-head"><h2 id="rankingTitle">Ranking</h2><span id="rankingCount">0 registros</span></div>
+        <div class="table-wrap" id="rankingTable"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="teacherArea" class="hide">
+    <div id="teacherLogin" class="panel login">
+      <div class="panel-head"><h2>Acesso do professor</h2></div>
+      <div class="body">
+        <input class="input" id="teacherPassword" type="password" placeholder="Senha do professor" onkeydown="if(event.key==='Enter')loginTeacher()">
+        <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="loginTeacher()">Entrar</button>
+        <p id="loginWarn" style="display:none;color:var(--danger);font-weight:800;margin-top:10px">Senha incorreta.</p>
+      </div>
+    </div>
+
+    <div id="teacherPanel" class="hide">
+      <div class="notice">A area publica ja esconde registros ocultos e nomes bloqueados. Aqui voce modera todos os jogos de uma vez.</div>
+      <div class="toolbar">
+        <input class="input" id="teacherSearch" placeholder="Buscar registros para moderar" oninput="renderRanking()">
+        <select class="select" id="teacherGameSelect" onchange="selectGame(this.value)"></select>
+      </div>
+      <div class="grid">
+        <aside class="panel">
+          <div class="panel-head"><h2>Nomes bloqueados</h2></div>
+          <div class="body">
+            <input class="input" id="blockNameInput" placeholder="Nome a bloquear">
+            <button class="btn btn-danger" style="width:100%;margin-top:8px" onclick="blockNameFromInput()">Bloquear nome</button>
+            <div class="blocked-list" id="blockedList"></div>
+          </div>
+        </aside>
+        <section class="panel content">
+          <div class="panel-head"><h2 id="teacherRankingTitle">Moderacao</h2><span id="teacherRankingCount">0 registros</span></div>
+          <div class="table-wrap" id="teacherRankingTable"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCQHQVC5dtAqgrrNo19_5JUH7t7dV1qXx0",
+  authDomain: "atividades-douglas.firebaseapp.com",
+  databaseURL: "https://atividades-douglas-default-rtdb.firebaseio.com",
+  projectId: "atividades-douglas",
+  storageBucket: "atividades-douglas.firebasestorage.app",
+  messagingSenderId: "546897428823",
+  appId: "1:546897428823:web:250438dd79a300b7b4be12"
+};
+const DB_ROOT = "estacao_aprendizagem";
+const PROF_SENHA = "Daniellen28*";
+
+let db = null;
+let mode = "public";
+let selectedGame = "";
+let games = {};
+let rankings = {};
+let blockedNames = {};
+let teacherLogged = false;
+
+function initFirebase(){
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.database();
+  db.ref(DB_ROOT).on("value", snap => {
+    const data = snap.val() || {};
+    games = data.jogos || {};
+    rankings = data.rankings || {};
+    blockedNames = (data.moderacao && data.moderacao.nomesBloqueados) || {};
+    ensureGameSelection();
+    renderGames();
+    renderBlocked();
+    renderRanking();
+  });
+}
+
+function normalizarNome(nome){
+  return String(nome || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim();
+}
+
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+}
+
+function jsArg(value){
+  return escapeHtml(JSON.stringify(String(value ?? "")));
+}
+
+function setMode(nextMode){
+  mode = nextMode;
+  document.getElementById("tabPublic").classList.toggle("active", mode === "public");
+  document.getElementById("tabTeacher").classList.toggle("active", mode === "teacher");
+  document.getElementById("publicArea").classList.toggle("hide", mode !== "public");
+  document.getElementById("teacherArea").classList.toggle("hide", mode !== "teacher");
+  renderRanking();
+}
+
+function loginTeacher(){
+  const ok = document.getElementById("teacherPassword").value === PROF_SENHA;
+  document.getElementById("loginWarn").style.display = ok ? "none" : "block";
+  if(!ok) return;
+  teacherLogged = true;
+  document.getElementById("teacherLogin").classList.add("hide");
+  document.getElementById("teacherPanel").classList.remove("hide");
+  renderRanking();
+}
+
+function ensureGameSelection(){
+  const ids = Object.keys(games);
+  const rankingIds = Object.keys(rankings);
+  const allIds = [...new Set([...ids, ...rankingIds])];
+  if(!selectedGame || !allIds.includes(selectedGame)) selectedGame = allIds[0] || "";
+}
+
+function getGameTitle(gameId){
+  return (games[gameId] && games[gameId].titulo) || gameId || "Jogo";
+}
+
+function renderGames(){
+  const ids = [...new Set([...Object.keys(games), ...Object.keys(rankings)])].sort((a,b)=>getGameTitle(a).localeCompare(getGameTitle(b)));
+  document.getElementById("gameCount").textContent = ids.length;
+  const options = ids.map(id => `<option value="${escapeHtml(id)}"${id===selectedGame?" selected":""}>${escapeHtml(getGameTitle(id))}</option>`).join("");
+  document.getElementById("publicGameSelect").innerHTML = options || '<option value="">Nenhum jogo</option>';
+  document.getElementById("teacherGameSelect").innerHTML = options || '<option value="">Nenhum jogo</option>';
+  document.getElementById("gameList").innerHTML = ids.length ? ids.map(id => {
+    const count = Object.keys(rankings[id] || {}).length;
+    return `<button class="game-btn ${id===selectedGame?"active":""}" onclick="selectGame(${jsArg(id)})"><b>${escapeHtml(getGameTitle(id))}</b><span>${count} registro(s)</span></button>`;
+  }).join("") : '<div class="empty">Nenhum jogo registrado ainda.</div>';
+}
+
+function selectGame(gameId){
+  selectedGame = gameId;
+  renderGames();
+  renderRanking();
+}
+
+function currentRows(includeHidden){
+  const searchId = mode === "teacher" ? "teacherSearch" : "publicSearch";
+  const q = normalizarNome(document.getElementById(searchId)?.value || "");
+  const data = rankings[selectedGame] || {};
+  return Object.entries(data).map(([id,item]) => ({id, ...item})).filter(row => {
+    const blocked = blockedNames[row.nomeNormalizado || normalizarNome(row.nome)];
+    if(!includeHidden && (row.visivel === false || blocked)) return false;
+    if(!q) return true;
+    return normalizarNome(`${row.nome} ${row.turma} ${row.jogoTitulo}`).includes(q);
+  }).sort((a,b)=>(b.pontos||0)-(a.pontos||0) || (a.criadoEm||0)-(b.criadoEm||0));
+}
+
+function renderRanking(){
+  if(!selectedGame){
+    document.getElementById("rankingTable").innerHTML = '<div class="empty">Nenhum jogo registrado ainda.</div>';
+    return;
+  }
+  const publicRows = currentRows(false);
+  document.getElementById("rankingTitle").textContent = getGameTitle(selectedGame);
+  document.getElementById("rankingCount").textContent = `${publicRows.length} registro(s)`;
+  document.getElementById("rankingTable").innerHTML = buildTable(publicRows, false);
+
+  if(teacherLogged){
+    const teacherRows = currentRows(true);
+    document.getElementById("teacherRankingTitle").textContent = `Moderacao - ${getGameTitle(selectedGame)}`;
+    document.getElementById("teacherRankingCount").textContent = `${teacherRows.length} registro(s)`;
+    document.getElementById("teacherRankingTable").innerHTML = buildTable(teacherRows, true);
+  }
+}
+
+function buildTable(rows, teacher){
+  if(!rows.length) return '<div class="empty">Nenhum registro para mostrar.</div>';
+  return `<table>
+    <thead><tr><th>#</th><th>Nome</th><th>Turma</th><th>Pontos</th><th>Nivel</th><th>Data</th>${teacher?'<th>Status</th><th>Acoes</th>':''}</tr></thead>
+    <tbody>${rows.map((row,index)=>{
+      const blocked = blockedNames[row.nomeNormalizado || normalizarNome(row.nome)];
+      const hidden = row.visivel === false || blocked;
+      return `<tr class="${hidden?'hidden-row':''}">
+        <td>${index+1}</td>
+        <td>${escapeHtml(row.nome)}</td>
+        <td>${escapeHtml(row.turma)}</td>
+        <td><b>${Number(row.pontos || 0)}</b></td>
+        <td>${escapeHtml(row.nivel || '')}</td>
+        <td>${escapeHtml(row.criadoEmTexto || row.data || '')}</td>
+        ${teacher?`<td><span class="badge ${hidden?'badge-off':'badge-ok'}">${hidden?'oculto':'visivel'}</span></td>
+        <td><div class="btn-row">
+          <button class="btn btn-secondary" onclick="toggleRecord(${jsArg(row.id)}, ${row.visivel === false ? 'true' : 'false'})">${row.visivel === false ? 'Reexibir' : 'Ocultar'}</button>
+          <button class="btn btn-danger" onclick="blockName(${jsArg(row.nome)})">Bloquear nome</button>
+        </div></td>`:''}
+      </tr>`;
+    }).join("")}</tbody>
+  </table>`;
+}
+
+async function toggleRecord(recordId, visible){
+  if(!selectedGame || !recordId) return;
+  await db.ref(`${DB_ROOT}/rankings/${selectedGame}/${recordId}`).update({visivel: visible});
+}
+
+async function blockNameFromInput(){
+  const name = document.getElementById("blockNameInput").value.trim();
+  if(!name) return;
+  await blockName(name);
+  document.getElementById("blockNameInput").value = "";
+}
+
+async function blockName(name){
+  const key = normalizarNome(name);
+  if(!key) return;
+  await db.ref(`${DB_ROOT}/moderacao/nomesBloqueados/${key}`).set({
+    nome: name,
+    nomeNormalizado: key,
+    criadoEm: Date.now(),
+    criadoEmTexto: new Date().toLocaleString("pt-BR")
+  });
+}
+
+async function unblockName(key){
+  await db.ref(`${DB_ROOT}/moderacao/nomesBloqueados/${key}`).remove();
+}
+
+function renderBlocked(){
+  const entries = Object.entries(blockedNames).sort((a,b)=>String(a[1].nome || a[0]).localeCompare(String(b[1].nome || b[0])));
+  const el = document.getElementById("blockedList");
+  if(!el) return;
+  el.innerHTML = entries.length ? entries.map(([key,item]) => `
+    <div class="blocked-item">
+      <span>${escapeHtml(item.nome || key)}</span>
+      <button class="btn btn-secondary" onclick="unblockName(${jsArg(key)})">Desbloquear</button>
+    </div>
+  `).join("") : '<div class="empty" style="padding:12px">Nenhum nome bloqueado.</div>';
+}
+
+window.addEventListener("DOMContentLoaded", initFirebase);
+</script>
 </body>
 </html>
