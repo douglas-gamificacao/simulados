@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Geral 2026 | Gamificação Total</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<style>
+:root{--orange:#f5821f;--green:#3cb462;--blue:#29abe2;--navy:#10122b;--navy2:#181b3a;--white:#fff;--light:#f4f6fb;--gray:#e5e7eb;--muted:#6b7280;--bad:#ef4444;--warn:#f59e0b;--r:14px}
+*{box-sizing:border-box} body{margin:0;font-family:Nunito,sans-serif;background:var(--light);color:var(--navy)}
+header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:20px;border-bottom:4px solid var(--orange)}
+h1{font-family:'Barlow Condensed',sans-serif;margin:0;font-size:2rem} .sub{color:var(--blue);font-weight:700;font-size:.85rem}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 12px 60px} .card{background:#fff;border-radius:var(--r);box-shadow:0 4px 22px rgba(16,18,43,.08);padding:18px;margin-bottom:14px}
+.login{max-width:420px;margin:60px auto} input,select{padding:11px 12px;border:2px solid var(--gray);border-radius:10px;font:inherit} button{border:0;border-radius:10px;padding:11px 14px;font-weight:900;cursor:pointer;background:var(--orange);color:#fff} button.sec{background:var(--navy)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px} .kpi{background:#fff;border-left:5px solid var(--orange);border-radius:12px;padding:14px;box-shadow:0 3px 18px rgba(16,18,43,.06)} .kpi b{font-size:1.8rem;display:block}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0} .tab{background:#fff;color:var(--navy);border:2px solid var(--gray);padding:9px 13px} .tab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+table{width:100%;border-collapse:collapse;font-size:.86rem} th{background:var(--navy);color:#fff;text-align:left;padding:9px;position:sticky;top:0} td{border-bottom:1px solid var(--gray);padding:8px;vertical-align:top} tr:hover td{background:#fafafa}
+.badge{display:inline-block;border-radius:999px;padding:3px 8px;font-size:.75rem;font-weight:900} .good{background:#dcfce7;color:#15803d} .mid{background:#fef3c7;color:#a16207} .low{background:#fee2e2;color:#b91c1c} .none{background:#e5e7eb;color:#4b5563} .down{color:var(--bad);font-weight:900} .up{color:var(--green);font-weight:900}
+.alerta{padding:8px 10px;border-radius:10px;margin:4px 0;font-weight:800;font-size:.82rem} .a-bad{background:#fee2e2;color:#b91c1c} .a-warn{background:#fef3c7;color:#92400e}
+@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)} .wrap{padding:12px 8px} table{font-size:.78rem}}
+</style></head><body>
+<header><div style="max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><h1>📊 Painel Geral 2026</h1><div class="sub">Gamificação Total · Prova Paulista · todos os bimestres</div></div><button class="sec" onclick="location.reload()">↻ Atualizar</button></div></header>
+<div id="login" class="card login"><h2>🔐 Acesso do professor</h2><p>Digite a senha para abrir o acompanhamento geral.</p><input id="senha" type="password" placeholder="Senha do professor" style="width:100%;margin:8px 0" onkeydown="if(event.key==='Enter')entrar()"><button onclick="entrar()" style="width:100%">Entrar</button><p id="erro" style="color:#ef4444;font-weight:800"></p></div>
+<div id="app" class="wrap" style="display:none"><div class="grid" id="kpis"></div><div class="card"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div><h2 style="margin:0">Resultados integrados</h2><p style="margin:3px 0;color:var(--muted)">Lê as coleções do Firebase: 1º e 2º bimestre. O aluno teste aparece, mas não entra nas médias.</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn" onclick="atualizarDados()" style="width:auto;padding:10px 14px;font-size:.85rem">🔄 Atualizar</button><select id="filtro" onchange="render()"><option value="todos">Todas as turmas</option></select></div></div><div class="tabs" id="tabs"></div><div id="tabela"></div></div><div class="card"><h2>🚨 Alertas gerais</h2><div id="alertas"></div></div></div>
+<script>
+const FIREBASE_CONFIG = {"apiKey": "AIzaSyCQHQVC5dtAqgrrNo19_5JUH7t7dV1qXx0", "authDomain": "atividades-douglas.firebaseapp.com", "databaseURL": "https://atividades-douglas-default-rtdb.firebaseio.com", "projectId": "atividades-douglas", "storageBucket": "atividades-douglas.firebasestorage.app", "messagingSenderId": "546897428823", "appId": "1:546897428823:web:250438dd79a300b7b4be12"};
+const PROF_SENHA="Daniellen28*";
+const COLECOES={"1b":"avaliacoes_pp1bi2026","2b":"avaliacoes_pp2bi2026"};
+const ALUNOS = {
+
+  // ── 6º ANO ── 20 alunos ativos
+  "6ano": {
+    "6A": [
+      { id:"121015685", nome:"Andre Alves Carneiro",                        senha:"Aa120315@" },
+      { id:"120974050", nome:"Ellen Pereira Miranda",                       senha:"Ep200315@" },
+      { id:"115272321", nome:"Emelly Cristina Souza Dal Lago",              senha:"Ec280514@" },
+      { id:"120810161", nome:"Evair Raymundo França",                       senha:"Er091114@" },
+      { id:"120974805", nome:"Heloisa Martins Lima",                        senha:"Hm040315@" },
+      { id:"120974858", nome:"João Pedro Mancio Groppo",                   senha:"Jp070714@" },
+      { id:"121015644", nome:"João Vitor Rodrigues Fortes",                senha:"Jv150615@" },
+      { id:"120961416", nome:"Joaquim Livramento Oliveira",                 senha:"Jl160215@" },
+      { id:"125973952", nome:"Julia Carneiro Lopes",                        senha:"Jc181214@" },
+      { id:"120975460", nome:"Kaique Ribeiro Borges",                       senha:"Kr260515@" },
+      { id:"120975482", nome:"Luan de Lima Enéia Raposo",                  senha:"Ll240115@" },
+      { id:"114901494", nome:"Lucca Pegoretti Marcondes",                   senha:"Lp060714@" },
+      { id:"115263031", nome:"Luiza Manoela Pazini Lourenço",              senha:"Lm240414@" },
+      { id:"115867072", nome:"Marcos Macedo de Sousa",                      senha:"Mm020615@" },
+      { id:"121385574", nome:"Maria Alice Silva Prado Pellicciari",         senha:"Ma160215@" },
+      { id:"120975611", nome:"Maria Estela de Andrade Silva",               senha:"Me240415@" },
+      { id:"116815040", nome:"Maria Fernanda dos Santos Ribeiro",           senha:"Mf200814@" },
+      { id:"121015510", nome:"Miguel Neves Meira de Castro",                senha:"Mn140914@" },
+      { id:"121015540", nome:"Murillo Guilherme Rodrigues França",         senha:"Mg140914@" },
+      { id:"115412748", nome:"Nicolas Emanuel Miranda dos Santos Cavalheiro",senha:"Ne080914@" }
+    ]
+  },
+
+  // ── 7º ANO ── 16 alunos ativos (excluídos: Joao Carlos-Transferido, Lucy Coradini-Baixa)
+  "7ano": {
+    "7A": [
+      { id:"120362533", nome:"Ana Vitória Pacheco Barboza",                senha:"Av071013@" },
+      { id:"113437916", nome:"Felipe Miler Sousa Reis",                    senha:"Fm280612@" },
+      { id:"120132439", nome:"Guilherme Rafael de Oliveira Uchise",        senha:"Gr110414@" },
+      { id:"120198887", nome:"Gustavo Gabriel de Oliveira Uchise",         senha:"Gg110414@" },
+      { id:"120159532", nome:"Jhonatan Alves Viana de Souza",              senha:"Ja301213@" },
+      { id:"115867110", nome:"Julia Anzolin Macedo da Cruz de Sousa",      senha:"Ja090214@" },
+      { id:"115442021", nome:"Lucy Vieira Reis",                            senha:"Lv070114@" },
+      { id:"120159081", nome:"Manuela Ferreira Rossetto",                   senha:"Mf070713@" },
+      { id:"120541618", nome:"Mikaell Pires Cunha",                         senha:"Mp300114@" },
+      { id:"113939880", nome:"Pierre de Almeida Assuncao",                  senha:"Pa291013@" },
+      { id:"120160266", nome:"Rafael de Jesus Nascimento de Andrade",      senha:"Rj010713@" },
+      { id:"120601550", nome:"Rafaella Maielo de Carvalho",                 senha:"Rm160813@" },
+      { id:"115890150", nome:"Ruan Ribeiro da Silva",                       senha:"Rr200913@" },
+      { id:"114035947", nome:"Samuel Amorim dos Santos",                    senha:"Sa260813@" },
+      { id:"120000171", nome:"Tamyris Juliana Chifarelli Baptista da Silva",senha:"Tj240913@" },
+      { id:"120362389", nome:"Thiago Rodrigues Silva",                      senha:"Tr210314@" }
+    ]
+  },
+
+  // ── 8º ANO ── 15 alunos ativos (excluído: Sumaya-Baixa)
+  "8ano": {
+    "8A": [
+      { id:"114886272", nome:"Arthur Pietro Miranda Dias dos Santos",      senha:"Ap200812@" },
+      { id:"120170630", nome:"Dusttin Jesuino Perejon Amorim",             senha:"Dj070712@" },
+      { id:"120363392", nome:"Fernando Henrique de Souza Carvalho",        senha:"Fh101012@" },
+      { id:"116224485", nome:"Gabrielly da Cunha Silva",                    senha:"Gc081012@" },
+      { id:"115991783", nome:"Gabrielly de Oliveira Uchise",               senha:"Go020712@" },
+      { id:"114410851", nome:"Henrique de Souza Aguiar",                   senha:"Hs090113@" },
+      { id:"116114134", nome:"Iasmin Alves Viana de Sousa",                senha:"Ia080812@" },
+      { id:"116040008", nome:"Luan Rodrigues Borges",                       senha:"Lr150213@" },
+      { id:"120537468", nome:"Luiz Otavio de Lima Aguiar Lehmann",         senha:"Lo280513@" },
+      { id:"116114273", nome:"Manuella Santana Cunha",                      senha:"Ms140113@" },
+      { id:"113928638", nome:"Marcelo Giovanini Silva",                     senha:"Mg170711@" },
+      { id:"116040096", nome:"Paulo Henrik Martins Ferrari",                senha:"Ph190613@" },
+      { id:"115035298", nome:"Pedro Pereira de Carvalho",                  senha:"Pp050413@" },
+      { id:"115821966", nome:"Rafael Ribeiro Fender",                       senha:"Rr160513@" },
+      { id:"120244874", nome:"Silas Inacio Mendes da Silva",               senha:"Si071112@" },
+      { id:"116037112", nome:"Theo Pereira Lisboa Lopes",                   senha:"Tp281212@" }
+    ]
+  },
+
+  // ── 9º ANO ── 18 alunos ativos (excluído: Samuel de Souza França - Não Comparecimento)
+  "9ano": {
+    "9A": [
+      { id:"115194031", nome:"Danielly Vitoria Brito da Silva",            senha:"Dv050911@" },
+      { id:"115150729", nome:"Enzo Martins dos Santos",                     senha:"Em050711@" },
+      { id:"115152913", nome:"Felipe Jose Molinari Souza",                  senha:"Fj060212@" },
+      { id:"115216047", nome:"Gabriel de Campos Pontes",                   senha:"Gc130711@" },
+      { id:"115148544", nome:"Henrique Muller Ribeiro da Silva",           senha:"Hm240412@" },
+      { id:"115172214", nome:"Izabela Scatolin Andrade",                    senha:"Is220312@" },
+      { id:"112386100", nome:"Julia Reis de Souza",                         senha:"Jr280312@" },
+      { id:"115172815", nome:"Lorrany Emanuele Silva de Morais",           senha:"Le250612@" },
+      { id:"120617933", nome:"Luara Tavares Florido",                       senha:"Lt180612@" },
+      { id:"116601082", nome:"Lucas da Silva Alves",                        senha:"Ls020512@" },
+      { id:"113356173", nome:"Luis Caetano Estevam Factore Sella",         senha:"Lc010212@" },
+      { id:"120298278", nome:"Luis Gabriel Sardinha de Lima",              senha:"Lg220711@" },
+      { id:"113573467", nome:"Maxmiliano Mendes da Silva",                  senha:"Mm270909@" },
+      { id:"114142660", nome:"Pedro Ernande Farias Lucio",                  senha:"Pe270212@" },
+      { id:"115233453", nome:"Raphaella Carneiro Souza",                    senha:"Rc170811@" },
+      { id:"115172339", nome:"Thayla Franca Oliveira",                      senha:"Tf160212@" },
+      { id:"115570270", nome:"Vinicius Teodoro da Cunha",                   senha:"Vt240511@" },
+      { id:"115049766", nome:"Isabela Luisy de Souza Pereira",             senha:"Il250512@" }
+    ]
+  },
+
+  // ── 1ª SÉRIE EM ── 19 alunos ativos (excluídos: Lanna-Baixa, Luiz Henrique-Transferido)
+  "1em": {
+    "1A": [
+      { id:"114215578", nome:"Acaua Bruno Pereira Miranda",                 senha:"Ab280211@" },
+      { id:"113378968", nome:"Ailton Gomes Pupo Netto",                    senha:"Ag230210@" },
+      { id:"113213542", nome:"Anna Carolina Lopes Brito",                   senha:"Ac040111@" },
+      { id:"114194850", nome:"Arthur Ripari de Andrade",                    senha:"Ar120511@" },
+      { id:"114671066", nome:"Camily Leticia Chifarelli Baptista da Silva", senha:"Cl300411@" },
+      { id:"114215554", nome:"Henrique Ferreira Carneiro",                  senha:"Hf131210@" },
+      { id:"114536613", nome:"Isaias Rodrigues de Souza Ribeiro",           senha:"Ir040910@" },
+      { id:"114194786", nome:"Jennifer Lara Barbosa",                       senha:"Jl100710@" },
+      { id:"114259216", nome:"João Pedro Molinari Souza",                  senha:"Jp051010@" },
+      { id:"114194809", nome:"Joao Victor da Silva Martins",               senha:"Jv100710@" },
+      { id:"122088317", nome:"Kaua Artilia Miranda",                        senha:"Ka201210@" },
+      { id:"114612084", nome:"Kayke Ferreira da Silva",                     senha:"Kf170111@" },
+      { id:"114218558", nome:"Luciano Rodrigues Marques",                   senha:"Lr120410@" },
+      { id:"114194726", nome:"Maria Clara Souza Peres Alves",              senha:"Mc091210@" },
+      { id:"112585779", nome:"Maria Luiza Souza Rocha da Silva",           senha:"Ml020311@" },
+      { id:"114466616", nome:"Pablo Bertho de Souza",                       senha:"Pb060211@" },
+      { id:"114194762", nome:"Pedro Henrique da Silva Rodrigues",           senha:"Ph181210@" },
+      { id:"113217688", nome:"Rafael Ribeiro da Silva",                     senha:"Rr101210@" },
+      { id:"112880139", nome:"Vitoria Luiza Dipoldi Aguiar",               senha:"Vl140411@" }
+    ]
+  },
+
+  // ── 2ª SÉRIE EM ── 16 alunos ativos (excluída: Maitê de Oliveira Cortez - BAIXA)
+  "2em": {
+    "2A": [
+      { id:"115246944", nome:"Andressa Vitoria Araujo de Lima",            senha:"Av050210@" },
+      { id:"113354189", nome:"Danilo Rodrigues Fortes",                    senha:"Dr210410@" },
+      { id:"114279593", nome:"Isabelly Caroline Pedroso Pereira",          senha:"Ic090909@" },
+      { id:"113355160", nome:"Luan Tavares Florido",                       senha:"Lt130809@" },
+      { id:"113659399", nome:"Luany Gabrielly Marques Alves",              senha:"Lg220610@" },
+      { id:"113380408", nome:"Maria Cecilia Lopes Martins",                senha:"Mc111009@" },
+      { id:"113243943", nome:"Mariana Victoria Assis de Mello",            senha:"Mv150110@" },
+      { id:"112753854", nome:"Matheus Ortega Ceravolo Incrocci",           senha:"Mo210809@" },
+      { id:"113376834", nome:"Paulo Ricardo Machado de Carvalho",          senha:"Pr010210@" },
+      { id:"113619575", nome:"Sophia de Souza Carvalho",                   senha:"Ss090609@" },
+      { id:"114563136", nome:"Tonny Santos Scatolin",                      senha:"Ts180709@" },
+      { id:"113355961", nome:"Tuanny Ariadne Barrionuevo Rodrigues",       senha:"Ta211209@" },
+      { id:"113598110", nome:"Valber Raymundo Franca",                     senha:"Vr160310@" },
+      { id:"114563057", nome:"Vitoria Santos Scatolin",                    senha:"Vs180709@" },
+      { id:"110079061", nome:"Livia Gonçalves Simões",                    senha:"Lg120209@" },
+      { id:"114777625", nome:"Renato Barcellos Guerreiro",                 senha:"Rb120610@" }
+    ]
+  },
+
+  // ── 3ª SÉRIE EM ── 16 alunos ativos (excluído: Fernando Alves Moreno - Transferido)
+  "3em": {
+    "3A": [
+      { id:"112783738", nome:"Aline Rodrigues Fortes",                      senha:"Ar251208@" },
+      { id:"112412821", nome:"Ana Clara Trudes Cordeiro",                   senha:"Ac150609@" },
+      { id:"111575660", nome:"Cristhian Alves da Cunha",                    senha:"Ca131207@" },
+      { id:"112545933", nome:"Diego Juan Chaves da Rocha",                  senha:"Dj030808@" },
+      { id:"114152178", nome:"Jullya Oliveira Quintana",                    senha:"Jo010308@" },
+      { id:"111383766", nome:"Laura Marques",                               senha:"Lm300608@" },
+      { id:"111922658", nome:"Lorraine de Medeiros Marques",               senha:"Lm270807@" },
+      { id:"122267345", nome:"Luan Renato Incrocci da Silveira",           senha:"Lr101108@" },
+      { id:"112783773", nome:"Manoelly Martins Ferrari",                    senha:"Mm151008@" },
+      { id:"112481462", nome:"Maria Fernanda Fortes Domingues",             senha:"Mf291108@" },
+      { id:"112415213", nome:"Naiomi Zwarg Fortes",                         senha:"Nz010409@" },
+      { id:"112481435", nome:"Pablo Henry Fortes Ferreira",                 senha:"Ph150209@" },
+      { id:"112481380", nome:"Pamela Gabrielly Ribeiro Marciano",           senha:"Pg091008@" },
+      { id:"112733938", nome:"Raul Ferreira de Souza Filho",               senha:"Rf010908@" },
+      { id:"112415166", nome:"Vitoria Silva Rossetto",                      senha:"Vs290908@" },
+      { id:"122621305", nome:"Viviane da Silva Ferreira",                   senha:"Vs130908@" }
+    ]
+  }
+
+};
+
+// ════════════════════════════════════════════
+//  CONFIGURAÇÃO DAS SÉRIES
+// ════════════════════════════════════════════
+
+const SERIES_CONFIG = {
+  "6ano":  { label:"6º Ano",  sub:"Ensino Fundamental", tipo:"ef" },
+  "7ano":  { label:"7º Ano",  sub:"Ensino Fundamental", tipo:"ef" },
+  "8ano":  { label:"8º Ano",  sub:"Ensino Fundamental", tipo:"ef" },
+  "9ano":  { label:"9º Ano",  sub:"Ensino Fundamental", tipo:"ef" },
+  "1em":   { label:"1ª Série",sub:"Ensino Médio",       tipo:"em" },
+  "2em":   { label:"2ª Série",sub:"Ensino Médio",       tipo:"em" },
+  "3em":   { label:"3ª Série",sub:"Ensino Médio",       tipo:"em" }
+};
+
+
+let db=null, dados={}, serieAtual='6ano';
+function entrar(){if(document.getElementById('senha').value!==PROF_SENHA){document.getElementById('erro').textContent='Senha incorreta.';return} document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';init();}
+async function init(){firebase.initializeApp(FIREBASE_CONFIG);db=firebase.database();await atualizarDados(true); montarFiltros(); render();}
+async function atualizarDados(silencioso=false){for(const [bim,root] of Object.entries(COLECOES)){const snap=await db.ref(root+'/respostas').get();dados[bim]=snap.val()||{}} if(!silencioso){render(); alert('Dados atualizados do Firebase.');}}
+function montarFiltros(){const f=document.getElementById('filtro'); Object.keys(ALUNOS).forEach(s=>Object.keys(ALUNOS[s]).forEach(t=>f.innerHTML+=`<option value="${t}">${t}</option>`)); document.getElementById('tabs').innerHTML=Object.keys(SERIES_CONFIG).map(s=>`<button class="tab ${s===serieAtual?'on':''}" onclick="serieAtual='${s}';render()">${SERIES_CONFIG[s].label}</button>`).join('')}
+function notaClasse(n){return n>=7?'good':n>=5?'mid':'low'}
+function alunoBimestre(s,t,a,b){return (((dados[b]||{})[s]||{})[t]||{})[a.id]||null}
+function tentativasStr(r){if(!r||!r.tentativas)return '—'; return Object.keys(r.tentativas).sort((a,b)=>+a-+b).map(k=>(r.tentativas[k].nota??0).toFixed(1)).join(' → ')}
+function render(){document.querySelectorAll('.tab').forEach(btn=>btn.classList.remove('on')); const tabs=[...document.querySelectorAll('.tab')]; const idx=Object.keys(SERIES_CONFIG).indexOf(serieAtual); if(tabs[idx])tabs[idx].classList.add('on'); const filtro=document.getElementById('filtro').value; const rows=[]; let soma1=0,c1=0,soma2=0,c2=0, fez1=0,fez2=0,total=0,piorou=0,melhorou=0,naofez=[];
+Object.keys(ALUNOS).forEach(s=>{if(s!==serieAtual)return; Object.keys(ALUNOS[s]).forEach(t=>{if(filtro!=='todos'&&filtro!==t)return; ([{id:'teste', nome:'⚗️ Aluno Teste', senha:'teste2026'}, ...(ALUNOS[s][t]||[])]).forEach(a=>{const teste=a.id==='teste'; const r1=alunoBimestre(s,t,a,'1b'), r2=alunoBimestre(s,t,a,'2b'); if(!teste) total++; const n1=r1?.melhorNota, n2=r2?.melhorNota; if(!teste&&r1){soma1+=n1;c1++;fez1++} if(!teste&&r2){soma2+=n2;c2++;fez2++} let ev='—'; if(n1!=null&&n2!=null){const d=n2-n1; if(d<0){ev=`<span class="down">▼ ${d.toFixed(1)}</span>`; if(!teste)piorou++} else if(d>0){ev=`<span class="up">▲ +${d.toFixed(1)}</span>`; if(!teste)melhorou++} else ev='0,0'} if(!teste&&(!r1||!r2))naofez.push(`${a.nome} (${t}) - ${!r1&&!r2?'não fez 1º e 2º':!r1?'não fez 1º':'não fez 2º'}`); rows.push(`<tr><td><b>${a.nome}</b>${teste?' <span class="badge none">teste</span>':''}<br><small>${t}</small></td><td>${r1?`<span class="badge ${notaClasse(n1)}">${n1.toFixed(1)}</span>`:'<span class="badge none">não fez</span>'}<br><small>${tentativasStr(r1)}</small></td><td>${r2?`<span class="badge ${notaClasse(n2)}">${n2.toFixed(1)}</span>`:'<span class="badge none">não fez</span>'}<br><small>${tentativasStr(r2)}</small></td><td>${ev}</td><td>${(r1?.totalTentativas||0)+(r2?.totalTentativas||0)}</td></tr>`); }) }) });
+const m1=c1?soma1/c1:0, m2=c2?soma2/c2:0; document.getElementById('kpis').innerHTML=`<div class="kpi"><span>Média 1º bi</span><b>${m1.toFixed(1)}</b></div><div class="kpi"><span>Média 2º bi</span><b>${m2.toFixed(1)}</b></div><div class="kpi"><span>Fizeram 1º / 2º</span><b>${fez1} / ${fez2}</b></div><div class="kpi"><span>Melhoraram / pioraram</span><b>${melhorou} / ${piorou}</b></div>`;
+document.getElementById('tabela').innerHTML=`<table><thead><tr><th>Aluno</th><th>1º bimestre<br><small>melhor nota / tentativas</small></th><th>2º bimestre<br><small>melhor nota / tentativas</small></th><th>Evolução</th><th>Total tent.</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+const alerts=[]; if(naofez.length) alerts.push(`<div class="alerta a-bad">Alunos pendentes: ${naofez.length}</div>`+naofez.slice(0,80).map(x=>`<div class="alerta a-warn">${x}</div>`).join('')); if(piorou) alerts.push(`<div class="alerta a-bad">${piorou} aluno(s) pioraram do 1º para o 2º bimestre na seleção atual.</div>`); if(!alerts.length) alerts.push('<div class="alerta" style="background:#dcfce7;color:#15803d">Sem alertas na seleção atual.</div>'); document.getElementById('alertas').innerHTML=alerts.join('');}
+</script></body></html>
