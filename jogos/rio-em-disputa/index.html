@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rio em Disputa | Gamificação Total</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+:root{
+  --ink:#181b18;--paper:#f3e6c3;--paper2:#fff8e8;--brick:#9e3226;--green:#285b4b;
+  --amber:#e1a52b;--teal:#2e6970;--blue:#335a78;--muted:#665e4e;--ok:#2b704d;--bad:#a52d2d
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;min-height:100vh;overflow-x:hidden;background:#171a17;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+button,input,select{font:inherit}
+button{touch-action:manipulation}
+.hide{display:none!important}
+.screen{min-height:100vh}
+.eyebrow{font:900 .69rem "Courier New",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--brick)}
+.btn{min-height:47px;border:2px solid var(--ink);background:var(--paper2);padding:10px 16px;font-weight:900;cursor:pointer;box-shadow:4px 4px 0 var(--ink)}
+.btn:hover{transform:translate(-1px,-1px)}
+.btn.primary{background:var(--amber)}
+.btn.brick{background:var(--brick);color:#fff}
+.btn.green{background:var(--green);color:#fff}
+.btn.small{min-height:38px;padding:7px 11px;font-size:.84rem;box-shadow:3px 3px 0 var(--ink)}
+.sound-btn{position:fixed;right:14px;bottom:14px;z-index:160;width:50px;height:50px;border-radius:50%;border:3px solid var(--ink);background:var(--amber);box-shadow:4px 4px 0 var(--ink);font-size:1.05rem;font-weight:900;cursor:pointer}
+
+#splash{display:flex;position:relative;overflow:hidden;color:#fff;background:#111}
+.hero{width:100%;min-height:100vh;display:flex;align-items:center;position:relative;padding:clamp(24px,6vw,84px);background-image:linear-gradient(90deg,rgba(11,14,13,.94) 0%,rgba(11,14,13,.74) 35%,rgba(11,14,13,.15) 65%),url("assets/rio-1904-panorama.jpg");background-size:cover;background-position:center}
+.hero:before{content:"";position:absolute;inset:14px;border:1px solid rgba(248,220,158,.72);box-shadow:inset 0 0 0 5px rgba(21,28,25,.4);pointer-events:none}
+.hero-copy{position:relative;z-index:2;width:min(710px,94vw)}
+.logo{width:min(340px,78vw);filter:drop-shadow(0 3px 2px rgba(0,0,0,.55));margin-bottom:18px}
+.hero h1{font-family:Georgia,serif;font-size:clamp(3.7rem,8vw,7.8rem);line-height:.79;margin:0;text-transform:uppercase;text-shadow:4px 5px 0 #111}
+.hero h1 span{display:block;color:var(--amber);font-style:italic;font-size:.65em;margin-top:13px}
+.hero p{font-family:Georgia,serif;font-size:clamp(1rem,1.7vw,1.25rem);line-height:1.55;max-width:630px;text-shadow:1px 2px 3px #000}
+.signature{display:inline-block;border:2px solid var(--amber);padding:6px 10px;margin:3px 0 19px;color:#ffe5a6;font:900 .72rem "Courier New",monospace;transform:rotate(-1deg)}
+
+#register{display:none;align-items:center;justify-content:center;padding:20px;background-image:linear-gradient(rgba(20,31,28,.88),rgba(20,31,28,.88)),url("assets/avenida-central.jpg");background-size:cover;background-position:center}
+.register-sheet{width:min(800px,96vw);background:var(--paper2);border:3px solid var(--ink);padding:30px;box-shadow:13px 13px 0 var(--brick);position:relative}
+.register-sheet:after{content:"RIO · 1904";position:absolute;right:20px;top:18px;border:2px solid var(--brick);padding:5px 9px;color:var(--brick);font:900 .7rem "Courier New",monospace;transform:rotate(3deg)}
+.register-sheet h2{font:900 clamp(2.5rem,6vw,4.5rem)/.9 Georgia,serif;margin:10px 0 15px;text-transform:uppercase;max-width:620px}
+.register-sheet p{line-height:1.55;max-width:690px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0}
+.field label{display:block;font:900 .69rem "Courier New",monospace;margin-bottom:6px}
+.field input,.field select{width:100%;min-height:49px;border:2px solid var(--ink);background:#fff;padding:10px}
+.warn{display:none;background:#f6ddd6;border-left:6px solid var(--bad);padding:10px;color:var(--bad);font-weight:800;margin-bottom:13px}
+
+#app{display:none;background:#d8c8a0;min-height:100vh}
+.topbar{position:sticky;top:0;z-index:60;background:#19221f;color:#fff;border-bottom:5px solid var(--amber)}
+.topin{max-width:1450px;margin:auto;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;gap:14px}
+.topin img{width:170px}
+.hud{display:flex;gap:7px;flex-wrap:wrap}
+.chip{border:1px solid #66746e;padding:6px 10px;min-width:84px;text-align:center}
+.chip small{display:block;color:#cfc4aa;font:700 .55rem "Courier New",monospace;text-transform:uppercase}
+.chip b{color:var(--amber)}
+.wrap{max-width:1450px;margin:auto;padding:20px 14px 54px}
+
+.city-head{display:grid;grid-template-columns:1fr auto;gap:22px;align-items:end;margin-bottom:14px}
+.city-head h1,.stage-head h1{font:900 clamp(2.5rem,6vw,5.2rem)/.88 Georgia,serif;margin:0;text-transform:uppercase}
+.city-head p{max-width:790px;line-height:1.55;color:#4f493d}
+.city-progress{width:118px;aspect-ratio:1;border-radius:50%;border:5px double var(--ink);background:var(--paper2);display:grid;place-items:center;text-align:center;font:900 .72rem "Courier New",monospace;box-shadow:5px 5px 0 var(--brick)}
+.city-map{height:min(760px,65vw);min-height:640px;position:relative;overflow:hidden;border:7px solid #302b22;box-shadow:12px 13px 0 rgba(34,29,22,.38);background-image:linear-gradient(rgba(18,22,20,.08),rgba(18,22,20,.14)),url("assets/rio-1904-panorama.jpg");background-size:cover;background-position:center}
+.city-map:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(122,54,34,.19),transparent 42%,rgba(224,178,74,.08));pointer-events:none}
+.city-map:after{content:"AVENIDA CENTRAL · MORRO DA PROVIDÊNCIA · RIO DE JANEIRO, 1904";position:absolute;left:17px;bottom:14px;background:rgba(20,25,22,.88);color:#f8eac9;padding:8px 11px;font:800 .65rem "Courier New",monospace;letter-spacing:.06em}
+.route{position:absolute;inset:0;pointer-events:none;opacity:.82}
+.route svg{width:100%;height:100%}
+.route path{fill:none;stroke:#f4cf6f;stroke-width:1.2;stroke-dasharray:2 2;filter:drop-shadow(0 1px 1px #000)}
+.district{position:absolute;z-index:3;width:clamp(64px,6vw,88px);aspect-ratio:1;border-radius:50%;border:4px solid #fff4d0;background:var(--accent);color:#fff;cursor:pointer;box-shadow:0 0 0 4px rgba(23,25,22,.8),5px 7px 0 rgba(19,20,18,.62);display:grid;place-items:center;text-align:center;font:900 clamp(.65rem,1vw,.78rem)/1.05 "Courier New",monospace;padding:7px;transition:.18s}
+.district:hover,.district:focus{transform:scale(1.08);z-index:8}
+.district:after{content:attr(data-label);position:absolute;left:50%;top:calc(100% + 11px);transform:translateX(-50%);width:170px;background:rgba(255,248,232,.94);color:var(--ink);border:2px solid var(--ink);padding:7px;font:900 .73rem/1.16 Georgia,serif;box-shadow:3px 3px 0 var(--ink)}
+.district.done{background:var(--ok)}
+.district.done:before{content:"CONCLUÍDA";position:absolute;top:-22px;background:#fff8e8;color:var(--ok);border:2px solid var(--ok);padding:3px 5px;font:900 .52rem "Courier New",monospace;transform:rotate(-4deg)}
+.district.locked{filter:grayscale(1);opacity:.7;cursor:not-allowed}
+.district:nth-of-type(1){left:8%;top:48%}
+.district:nth-of-type(2){left:31%;top:57%}
+.district:nth-of-type(3){left:48%;top:39%}
+.district:nth-of-type(4){left:61%;top:58%}
+.district:nth-of-type(5){left:76%;top:31%}
+.district:nth-of-type(6){left:88%;top:11%}
+.map-actions{text-align:center;margin-top:25px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+#stageView{display:none}
+.stage-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:15px}
+.stage-head p{max-width:880px;color:#51493b;line-height:1.52}
+.stage-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr);gap:16px;align-items:start;background:#4b4030;padding:12px;border:3px solid #241f18;box-shadow:9px 10px 0 rgba(45,36,25,.35)}
+.archive,.quiz{min-width:0;background:var(--paper2);border:1px solid #7f6f50}
+.archive{min-height:670px;padding:20px 22px 28px;position:relative;background-image:linear-gradient(rgba(92,72,40,.04) 1px,transparent 1px);background-size:100% 27px}
+.archive:before{content:"ARQUIVO URBANO";position:absolute;right:20px;top:15px;border:2px solid var(--accent);color:var(--accent);padding:4px 7px;font:900 .62rem "Courier New",monospace;transform:rotate(2deg)}
+.archive-nav{display:flex;gap:7px;width:100%;max-width:100%;min-width:0;overflow-x:auto;overflow-y:hidden;border-bottom:1px solid #b8a680;padding:0 105px 11px 0;contain:inline-size}
+.archive-tab{flex:0 0 auto;white-space:nowrap;border:0;border-bottom:4px solid transparent;background:transparent;padding:8px 10px;font-family:Georgia,serif;font-weight:900;cursor:pointer}
+.archive-tab.active{color:var(--accent);border-color:var(--accent)}
+.source{display:none}
+.source.active{display:block}
+.source h3{font:900 1.8rem/1 Georgia,serif;margin:18px 0 12px}
+.source p,.source li{line-height:1.58}
+.source-image{position:relative;width:100%;height:360px;border:2px solid #493f30;background:#202623;cursor:zoom-in;padding:0;overflow:hidden}
+.source-image img{display:block;width:100%;height:100%;object-fit:contain}
+.source-image span{position:absolute;right:8px;bottom:8px;background:rgba(20,25,22,.9);color:#fff;padding:7px 9px;font:800 .64rem "Courier New",monospace}
+.caption{font-size:.78rem;color:var(--muted);font-style:italic;margin:7px 0 13px}
+.lens{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:13px 0}
+.lens div{border-top:5px solid var(--accent);background:#eadcba;padding:11px;line-height:1.4}
+.lens b{display:block;font-family:Georgia,serif;margin-bottom:4px}
+.exam-tip,.trap{margin-top:11px;padding:11px;line-height:1.46}
+.exam-tip{border:2px dashed var(--teal);background:#e3eeee}
+.trap{border-left:6px solid var(--brick);background:#f3ded5}
+.quiz{padding:21px;position:sticky;top:88px;box-shadow:6px 6px 0 #221e18}
+.qprogress{font:900 .67rem "Courier New",monospace;color:var(--brick);letter-spacing:.06em}
+.question{font:900 1.12rem/1.46 Georgia,serif;margin:14px 0}
+.answers{display:grid;gap:9px}
+.answer{min-height:51px;border:1px solid #a38b5f;background:#fff;padding:11px;text-align:left;cursor:pointer;line-height:1.38}
+.answer:hover{border-color:var(--ink)}
+.answer.correct{background:#dcefe1;border:2px solid var(--ok)}
+.answer.wrong{background:#f4d9d5;border:2px solid var(--bad)}
+.feedback{display:none;margin-top:12px;padding:11px;border-left:6px solid;line-height:1.45}
+.feedback.show{display:block}
+.feedback.ok{background:#dcefe1;border-color:var(--ok)}
+.feedback.bad{background:#f4d9d5;border-color:var(--bad)}
+.qactions{display:flex;justify-content:space-between;gap:8px;margin-top:13px}
+.complete{text-align:center;padding:26px 8px}
+.score{font:900 4.7rem Georgia,serif;color:var(--accent)}
+
+.overlay{position:fixed;inset:0;z-index:130;background:rgba(9,13,12,.91);display:none;align-items:flex-start;justify-content:center;padding:18px;overflow:auto}
+.overlay.open{display:flex}
+.modal{width:min(970px,96vw);margin:auto;background:var(--paper2);border:3px solid var(--ink);padding:19px;box-shadow:11px 11px 0 var(--amber)}
+.modal h2{font:900 clamp(2rem,5vw,3.6rem)/.95 Georgia,serif;margin:0;text-transform:uppercase}
+.modal-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.close{width:43px;height:43px;border:2px solid var(--ink);background:var(--paper);font-weight:900;cursor:pointer}
+.ranking{overflow:auto;margin-top:15px;border:2px solid var(--ink)}
+table{width:100%;border-collapse:collapse;min-width:720px;background:#fff}
+th,td{padding:10px 12px;border-bottom:1px solid #ded0ae;text-align:left;white-space:nowrap}
+th{background:var(--ink);color:#fff;font:800 .68rem "Courier New",monospace;text-transform:uppercase}
+tr.me td{background:#fff2c7;font-weight:900}
+.final-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+.final-stat{border:2px solid var(--ink);background:#eadcba;padding:15px;text-align:center}
+.final-stat b{display:block;font:900 2.8rem Georgia,serif;color:var(--brick)}
+.lightbox{width:min(1220px,98vw);height:min(91vh,940px);margin:auto;display:flex;flex-direction:column}
+.lightbox-top{display:flex;justify-content:space-between;align-items:center;color:#fff;margin-bottom:8px}
+.lightbox-top strong{font-family:Georgia,serif;font-size:1.1rem}
+.lightbox img{width:100%;height:calc(100% - 64px);object-fit:contain;background:#111;border:2px solid #e0c474}
+.lightbox-caption{color:#f3e4c4;font-size:.82rem;text-align:center;margin-top:7px}
+
+@media(max-width:1050px){
+  .city-map{height:760px;min-height:760px}.stage-layout{grid-template-columns:1fr}.quiz{position:static}
+}
+@media(max-width:680px){
+  .hero{align-items:flex-end;text-align:center;padding:24px 15px 44px;background-image:linear-gradient(0deg,rgba(11,14,13,.97) 0%,rgba(11,14,13,.78) 52%,rgba(11,14,13,.18) 100%),url("assets/rio-1904-panorama.jpg");background-position:55% center}
+  .hero h1{font-size:3.3rem}.hero p{font-size:.95rem}.register-sheet{padding:22px 15px}.register-sheet:after{position:static;display:inline-block;margin-bottom:8px}.form,.lens,.final-grid{grid-template-columns:1fr}
+  .topin{align-items:flex-start;flex-direction:column}.hud{width:100%}.chip{flex:1}.city-head{grid-template-columns:1fr}.city-progress{width:88px}
+  .city-map{height:auto;min-height:0;padding:26px 12px 58px;display:grid;gap:22px;background-attachment:scroll;background-position:center}
+  .city-map:before{background:rgba(13,18,16,.48)}.city-map:after{font-size:.55rem;right:12px;text-align:center}.route{display:none}
+  .district,.district:nth-of-type(n){position:relative;left:auto;top:auto;width:min(82vw,330px);height:auto;aspect-ratio:auto;min-height:86px;border-radius:5px;margin:0 auto;display:flex;justify-content:flex-start;padding:15px 17px;font-size:.78rem}
+  .district:after{position:static;transform:none;width:auto;background:transparent;color:#fff;border:0;box-shadow:none;font:900 1.15rem Georgia,serif;text-align:left;margin-left:13px}
+  .district.done:before{right:8px;left:auto;top:-10px}.stage-head{flex-direction:column}.stage-layout{padding:7px}.archive,.quiz{padding:14px}.archive:before{display:none}.archive-nav{padding-right:0}
+  .source-image{height:270px}.caption{overflow-wrap:anywhere}.qactions{flex-direction:column}.qactions .btn{width:100%}.modal{padding:13px}.lightbox{height:92vh}.sound-btn{width:44px;height:44px;font-size:.78rem}
+}
+</style>
+</head>
+<body>
+<button id="soundBtn" class="sound-btn" onclick="toggleSound(event)" title="Ativar ou silenciar trilha e efeitos">SOM</button>
+<audio id="ambientMusic" src="assets/trilha-rio-1904.wav" loop preload="auto"></audio>
+
+<section id="splash" class="screen">
+  <div class="hero">
+    <div class="hero-copy">
+      <img class="logo" src="assets/logo.png" alt="Gamificação Total">
+      <div class="eyebrow" style="color:#f3ce71">História · Cidade · Cidadania · Vestibular</div>
+      <h1>Rio em <span>Disputa</span></h1>
+      <p>Entre demolições, vacinas, bondes e barricadas, atravesse o Rio de Janeiro de 1904 e descubra por que o progresso não chegou da mesma forma para todos.</p>
+      <div class="signature">PROF. DOUGLAS SOUSA</div><br>
+      <button class="btn primary" onclick="showRegister()">Entrar na cidade</button>
+    </div>
+  </div>
+</section>
+
+<section id="register" class="screen">
+  <div class="register-sheet">
+    <div class="eyebrow">Nova jornada histórica</div>
+    <h2>Quem atravessará a cidade?</h2>
+    <p>Cada entrada começa com zero ponto. Você encontrará dentro do jogo todos os documentos e conceitos necessários. Ao concluir um distrito, seu resultado será salvo no ranking.</p>
+    <div class="form">
+      <div class="field"><label>NOME DO ESTUDANTE</label><input id="name" maxlength="40" placeholder="Digite seu nome"></div>
+      <div class="field"><label>SÉRIE / TURMA</label><select id="class"><option value="">Selecione</option><option>6º ano</option><option>7º ano</option><option>8º ano</option><option>9º ano</option><option>1ª série</option><option>2ª série</option><option>3ª série</option><option>Visitante externo</option></select></div>
+    </div>
+    <div id="warn" class="warn"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="showOnly('splash')">Voltar</button><button class="btn brick" onclick="startGame()">Começar travessia</button></div>
+  </div>
+</section>
+
+<section id="app" class="screen">
+  <header class="topbar"><div class="topin"><img src="assets/logo.png" alt="Gamificação Total"><div class="hud"><div class="chip"><small>Pontos</small><b id="hudScore">0</b></div><div class="chip"><small>Distritos</small><b id="hudStages">0/6</b></div><div class="chip"><small>Nível</small><b id="hudLevel">Observador</b></div></div></div></header>
+  <main class="wrap">
+    <section id="menuView">
+      <div class="city-head"><div><div class="eyebrow">Rio de Janeiro · Capital Federal · 1904</div><h1>Uma cidade, muitos projetos</h1><p>Escolha um ponto da cidade. Examine os vestígios, entenda os conceitos e só então enfrente as questões. O legado urbano será liberado depois dos cinco primeiros distritos.</p></div><div class="city-progress" id="progress">0%<br>percorrido</div></div>
+      <div id="cityMap" class="city-map">
+        <div class="route" aria-hidden="true"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M12 56 C24 50,27 64,35 65 S46 49,52 48 S61 68,66 66 S75 43,80 39 S89 28,92 18"/></svg></div>
+      </div>
+      <div class="map-actions"><button class="btn" onclick="openRanking()">Ver ranking</button><button class="btn green" onclick="openGuide()">Como analisar uma fonte</button></div>
+    </section>
+
+    <section id="stageView">
+      <div class="stage-head"><div><div id="stageKicker" class="eyebrow"></div><h1 id="stageTitle"></h1><p id="stageIntro"></p></div><button class="btn small" onclick="returnMenu()">Voltar à cidade</button></div>
+      <div class="stage-layout">
+        <article class="archive" id="archive"><div id="archiveNav" class="archive-nav"></div><div id="archivePages"></div></article>
+        <aside class="quiz">
+          <div id="quizArea"><div id="qProgress" class="qprogress"></div><div id="question" class="question"></div><div id="answers" class="answers"></div><div id="feedback" class="feedback"></div><div class="qactions"><button class="btn small" onclick="showSupport()">Rever documentos</button><button id="nextBtn" class="btn small primary hide" onclick="nextQuestion()">Próxima questão</button></div></div>
+          <div id="complete" class="complete hide"><div class="eyebrow">Distrito concluído</div><div id="stageScore" class="score"></div><p id="completeText"></p><button class="btn primary" onclick="finishStage()">Registrar percurso</button></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+</section>
+
+<div id="rankingModal" class="overlay"><div class="modal"><div class="modal-top"><div><div class="eyebrow">Resultados online</div><h2>Ranking da cidade</h2></div><button class="close" onclick="closeModal('rankingModal')">X</button></div><div id="rankingContent" class="ranking"></div></div></div>
+<div id="guideModal" class="overlay"><div class="modal"><div class="modal-top"><div><div class="eyebrow">Ferramenta de prova</div><h2>Como ler uma fonte</h2></div><button class="close" onclick="closeModal('guideModal')">X</button></div><div class="lens"><div><b>1. Identifique</b>Quem produziu, quando, onde e em qual tipo de documento.</div><div><b>2. Contextualize</b>Relacione a fonte aos conflitos e interesses daquele período.</div><div><b>3. Observe</b>Procure símbolos, escolhas, silêncios, exageros e pontos de vista.</div><div><b>4. Conclua</b>Escolha a alternativa sustentada pela fonte, não pela opinião atual.</div></div></div></div>
+<div id="finalModal" class="overlay"><div class="modal"><div class="modal-top"><div><div class="eyebrow">Parecer histórico concluído</div><h2>Você atravessou o Rio de 1904</h2></div><button class="close" onclick="closeModal('finalModal')">X</button></div><p>Seu percurso conectou ciência, autoritarismo, cidadania, reformas urbanas e exclusão social. Essa leitura multicausal é uma das competências mais exigidas pelos vestibulares.</p><div class="final-grid"><div class="final-stat"><b id="finalScore">0</b>pontos</div><div class="final-stat"><b id="finalLevel">—</b>nível</div></div><button class="btn primary" onclick="closeModal('finalModal');openRanking()">Ver classificação</button></div></div>
+<div id="imageModal" class="overlay" onclick="closeModal('imageModal')"><div class="lightbox" onclick="event.stopPropagation()"><div class="lightbox-top"><strong id="lightboxTitle">Fonte ampliada</strong><button class="close" onclick="closeModal('imageModal')">X</button></div><img id="lightboxImage" alt="Fonte histórica ampliada"><div id="lightboxCaption" class="lightbox-caption"></div></div></div>
+
+<script>
+const FIREBASE_CONFIG={apiKey:"AIzaSyCQHQVC5dtAqgrrNo19_5JUH7t7dV1qXx0",authDomain:"atividades-douglas.firebaseapp.com",databaseURL:"https://atividades-douglas-default-rtdb.firebaseio.com",projectId:"atividades-douglas",storageBucket:"atividades-douglas.firebasestorage.app",messagingSenderId:"546897428823",appId:"1:546897428823:web:250438dd79a300b7b4be12"};
+const GAME_ID="rio-em-disputa",GAME_TITLE="Rio em Disputa: Progresso, Vacina e Exclusão",DB_ROOT="estacao_aprendizagem",A="assets/";
+let db=null;try{if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);db=firebase.database()}catch(error){console.warn("Firebase indisponível",error)}
+function q(text,ops,ok,exp){return{text,ops,ok,exp}}
+const STAGES=[
+{id:"paris",title:"A capital que queria parecer Paris",label:"Cidade-vitrine",intro:"O projeto republicano de modernização e seus agentes.",accent:"#9b3c2c",max:15,pages:[
+{t:"Antes da avenida",img:A+"rio-antes.jpg",cap:"Casarões do Rio de Janeiro antes do bota-abaixo. Fotografia de Augusto Malta. Arquivo Geral da Cidade do Rio de Janeiro.",text:"No início do século XX, o Rio era a capital política e econômica do país. A cidade reunia riqueza, circulação portuária e graves problemas de moradia, água, esgoto e epidemias. As reformas pretendiam transformar sua aparência e seu funcionamento.",lens:[["Capital Federal","O Rio funcionava como vitrine do novo regime republicano."],["Belle Époque","As elites admiravam reformas urbanas e costumes europeus."],["Questão central","Modernizar o quê, para quem e por quais meios?"]],tip:"Em vestibulares, modernização não é sinônimo automático de melhoria para toda a população.",trap:"Desconfie de alternativas que apresentam a reforma como puramente técnica e sem conflitos sociais."},
+{t:"A cidade-vitrine",img:A+"avenida-central.jpg",cap:"Avenida Central em 1906. Fotografia de Marc Ferrez. Coleção Gilberto Ferrez, Instituto Moreira Salles.",text:"A Avenida Central tornou-se símbolo da capital renovada: prédios elegantes, circulação de bondes e referências francesas. O espaço também expressava distinção social, com regras de comportamento e vestuário.",lens:[["Rodrigues Alves","Presidente que apoiou ações vigorosas na capital."],["Pereira Passos","Prefeito responsável pela reforma urbana."],["Oswaldo Cruz","Sanitarista que liderou o combate às epidemias."]],tip:"Associe os três agentes a funções diferentes: governo federal, prefeitura e saúde pública."}],
+questions:[
+q("A remodelação da Avenida Central expressava principalmente:",["o desejo de construir uma capital moderna inspirada em modelos europeus","a distribuição de moradias populares no centro","a rejeição ao transporte por bondes","a autonomia política dos bairros periféricos"],0,"A avenida funcionava como vitrine da República e de sua aproximação com padrões europeus."),
+q("Na reforma do Rio, Pereira Passos e Oswaldo Cruz atuaram, respectivamente, nas áreas de:",["urbanização e saúde pública","diplomacia e educação","política monetária e justiça","agricultura e relações exteriores"],0,"Passos conduziu a remodelação urbana; Cruz liderou as campanhas sanitárias."),
+q("A comparação entre o Rio anterior às reformas e a Avenida Central permite concluir que:",["a modernização alterou a circulação e a paisagem, mas não eliminou a desigualdade","todos os moradores receberam novas casas no centro","as epidemias desapareceram antes das medidas sanitárias","a reforma preservou integralmente as antigas ruas"],0,"A transformação material foi profunda, mas seus benefícios e custos foram distribuídos de forma desigual."),
+q("O termo Belle Époque, nesse contexto, relaciona-se:",["à valorização de padrões culturais e urbanos europeus pelas elites","ao retorno da monarquia portuguesa","à industrialização igualitária dos subúrbios","à recusa de costumes estrangeiros"],0,"A expressão ajuda a compreender a busca por uma aparência cosmopolita e europeizada."),
+q("Uma leitura crítica da ideia de progresso deve perguntar:",["quais grupos foram beneficiados e quais suportaram os custos da reforma","apenas quantos edifícios foram inaugurados","se todas as fotografias antigas são falsas","somente quem desenhou as avenidas"],0,"A análise histórica considera interesses, conflitos e impactos sociais.")
+]},
+{id:"demolida",title:"Bota-abaixo: a cidade demolida",label:"Demolições",intro:"Moradia popular, expulsão do centro e segregação urbana.",accent:"#8d3027",max:15,pages:[
+{t:"O cortiço",img:A+"cortico.jpg",cap:"Cortiços na Rua da Sé, Rio de Janeiro, 1906. Fotografia de Augusto Malta. IFCH/Unicamp – Cecult.",text:"Cortiços e casas coletivas permitiam que trabalhadores vivessem próximos ao porto, aos mercados e aos serviços. O discurso higienista frequentemente descrevia esses espaços como focos de doença e desordem.",lens:[["Bota-abaixo","Demolição de casarões, cortiços e barracos para abrir avenidas."],["Despejo","A reforma não ofereceu moradia digna suficiente aos removidos."],["Segregação","Grupos sociais passaram a ocupar áreas cada vez mais separadas."]],tip:"Relacione reforma urbana, valorização imobiliária e deslocamento da população pobre.",trap:"A existência de problemas sanitários não prova que a expulsão sem alternativa habitacional fosse inevitável."},
+{t:"A charge responde",img:A+"charge-avenidas.jpg",cap:"“Por causa das Avenidas”, charge de Raul Pederneira, revista O Malho, 28 de maio de 1904. Biblioteca Nacional.",text:"Na cena, pessoas ocupam a rua. O diálogo explica: “Que é que o senhor quer, não há casas...”. A charge usa humor para denunciar que a abertura das avenidas agravava uma crise habitacional.",lens:[["Ironia","O progresso da avenida produz pessoas sem moradia."],["Imprensa","Charges condensam críticas políticas em imagens e diálogos."],["Fonte situada","A charge revela um ponto de vista, não uma fotografia neutra."]],tip:"Observe a relação entre legenda e imagem. Em charges, o sentido costuma nascer dessa combinação."},
+{t:"Passos em ação",img:A+"charge-barracao.jpg",cap:"“Um barracão de menos”, charge atribuída a K. Lixto, revista O Malho, março de 1903.",text:"A brincadeira com o nome “Passos” apresenta o prefeito como agente direto da derrubada. A aparente celebração de “um barracão de menos” permite discutir quem definia o que deveria desaparecer da paisagem.",lens:[["Poder público","O Estado escolheu os espaços e grupos atingidos."],["Higienismo","Saúde e limpeza também foram usadas como linguagem de controle social."]],trap:"Evite interpretar toda charge como apoio ao personagem retratado; caricatura, exagero e duplo sentido costumam produzir crítica."}],
+questions:[
+q("O principal efeito social do bota-abaixo foi:",["a expulsão de moradores pobres do centro sem solução habitacional suficiente","a distribuição gratuita de apartamentos na Avenida Central","o fim imediato das favelas","a valorização igual de todos os bairros"],0,"As demolições deslocaram trabalhadores para cortiços restantes, subúrbios e morros."),
+q("Na charge “Por causa das Avenidas”, a presença de pessoas na rua critica:",["a crise de moradia agravada pelas reformas","o excesso de hospitais públicos","a proibição dos bondes elétricos","a expansão de moradias populares"],0,"A própria fala da charge relaciona a rua à falta de casas."),
+q("O uso do higienismo nas reformas permite discutir:",["a associação entre saúde, intervenção urbana e controle das populações pobres","a inexistência de doenças no Rio","a participação universal nas decisões municipais","o abandono completo da medicina"],0,"Medidas sanitárias coexistiram com intervenções autoritárias e socialmente seletivas."),
+q("A ironia de Lima Barreto sobre uma cidade europeia e outra abandonada denuncia:",["a desigualdade espacial produzida pelo projeto de modernização","a falta de interesse das elites pela cultura francesa","a igualdade entre centro e subúrbio","a defesa da derrubada de todas as casas populares"],0,"O escritor contrapõe a área embelezada aos bairros esquecidos pelo poder público."),
+q("Ao analisar uma charge histórica, o procedimento mais adequado é:",["relacionar imagem, legenda, autoria, data e contexto","considerá-la uma reprodução fotográfica exata","ignorar os exageros visuais","usar apenas opiniões atuais"],0,"A charge é uma fonte construída, marcada por linguagem e posição política.")
+]},
+{id:"higiene",title:"Higiene, ciência e coerção",label:"Saúde pública",intro:"Epidemias, campanhas sanitárias e limites da ação estatal.",accent:"#2f6250",max:15,pages:[
+{t:"Uma cidade insalubre",img:A+"mercado.jpg",cap:"Cena de comércio popular no Rio de Janeiro no início do século XX. Fonte presente no material didático fornecido.",text:"Febre amarela, varíola e peste bubônica atingiam repetidamente a capital. O saneamento era precário e a circulação portuária favorecia epidemias. Havia necessidade real de políticas públicas de saúde.",lens:[["Febre amarela","Combatida com brigadas contra mosquitos."],["Peste bubônica","Campanhas atacaram ratos e melhoraram o manejo do lixo."],["Varíola","A vacinação era eficaz, mas sua obrigatoriedade gerou conflitos."]],tip:"A resposta historicamente mais completa reconhece ao mesmo tempo a necessidade sanitária e o autoritarismo da aplicação.",trap:"Não escolha alternativas que obriguem você a ser simplesmente “a favor da ciência” ou “a favor da revolta” sem analisar o contexto."},
+{t:"O rei da seringa",img:A+"rei-seringacao.jpg",cap:"“O Luiz XIV da seringação”, charge atribuída a K. Lixto, revista O Malho, 19 de março de 1904.",text:"A charge transforma Oswaldo Cruz em um monarca absoluto: seringa e vassoura substituem símbolos de poder. A sátira não demonstra que a vacina era ineficaz; critica a concentração de autoridade e a maneira de executar as medidas.",lens:[["Ciência","A vacina protegia contra a varíola."],["Coerção","Agentes podiam entrar em casas e impor procedimentos."],["Comunicação","A população recebeu poucas explicações e pouca participação."]],tip:"Vestibulares frequentemente diferenciam o conhecimento científico da política usada para aplicá-lo."},
+{t:"Três autoridades",img:A+"oswaldo-cruz.png",cap:"Oswaldo Cruz, médico sanitarista responsável pelas principais campanhas contra epidemias.",text:"Rodrigues Alves autorizou as reformas, Pereira Passos transformou o espaço urbano e Oswaldo Cruz comandou as medidas sanitárias. A ação articulada produziu resultados sanitários, mas também medo, resistência e violações.",lens:[["Resultado","As campanhas contribuíram para controlar epidemias."],["Método","A imposição sem diálogo feriu direitos e costumes."],["Cidadania","A população era tratada como objeto da política, não como participante."]]}],
+questions:[
+q("A interpretação mais adequada das medidas sanitárias de 1904 afirma que:",["tinham fundamento científico, mas foram aplicadas de maneira autoritária e pouco dialogada","não possuíam qualquer relação com doenças","foram decididas diretamente pela população","tinham como objetivo abolir a vacinação"],0,"É necessário distinguir a eficácia sanitária da forma coerciva de implementação."),
+q("A charge de Oswaldo Cruz como “rei da seringação” critica:",["a concentração de poder e o caráter impositivo das ações","a inexistência de médicos na capital","a defesa do voto secreto","o uso de vacinas apenas pelas elites"],0,"Os símbolos absolutistas associam a campanha à imposição."),
+q("Entre as ações sanitárias do período estavam:",["combate a mosquitos e ratos, manejo do lixo e vacinação contra a varíola","fechamento dos portos e proibição da medicina","construção exclusiva de escolas militares","extinção dos serviços de limpeza"],0,"As campanhas atacaram diferentes vetores e doenças."),
+q("A resistência popular não deve ser explicada apenas como ignorância porque:",["envolvia invasão de domicílios, desconfiança, falta de informação e violações de direitos","a vacina era desconhecida pelos médicos","não existiam epidemias na cidade","todos os manifestantes pertenciam ao governo"],0,"A revolta teve causas sociais, políticas e culturais."),
+q("Uma política pública compatível com maior participação cidadã deveria:",["informar, dialogar e garantir direitos durante a ação sanitária","eliminar toda decisão técnica","usar somente a força militar","impedir qualquer campanha de vacinação"],0,"Ciência e cidadania podem atuar juntas quando há transparência e respeito.")
+]},
+{id:"revolta",title:"As ruas se revoltam",label:"Barricadas",intro:"Conflitos de novembro de 1904, repressão e estado de sítio.",accent:"#b1482d",max:15,pages:[
+{t:"A batalha da Câmara",img:A+"batalha-camara.jpg",cap:"“Na batalha da Câmara: o carro alegórico da vacina obrigatória”, revista O Malho, 1º de outubro de 1904.",text:"Antes da revolta, a imprensa já representava a população como vítima das disputas políticas. Na charge, a seringa aparece junto ao chicote, e o “Zé Povo” afirma ser sempre sacrificado.",lens:[["Lei nº 1.261","Aprovada em 31 de outubro de 1904, tornou a vacinação obrigatória."],["Regulamentação","As regras divulgadas em novembro intensificaram a tensão."],["Zé Povo","Personagem usado pela imprensa para representar a população."]],tip:"Use a cronologia: crítica pública, aprovação da lei, regulamentação e revolta entre 10 e 16 de novembro."},
+{t:"A cidade em conflito",img:A+"bonde-tombado.jpg",cap:"Bonde tombado durante a Revolta da Vacina. Acervo Casa de Oswaldo Cruz/Agência Senado.",text:"Barricadas, bondes virados, trilhos arrancados e confrontos ocuparam as ruas. A revolta reuniu setores populares, trabalhadores, opositores políticos e militares, com motivações diferentes.",lens:[["Conflito","A revolta não teve um único grupo nem uma única causa."],["Repressão","Mais de 900 pessoas foram presas; houve feridos e mortos."],["Estado de sítio","O governo ampliou poderes de repressão para controlar a capital."]],trap:"Evite alternativas que transformem todos os participantes em um grupo homogêneo com a mesma intenção."},
+{t:"Depois das barricadas",img:A+"presos.png",cap:"Manifestantes detidos pelas autoridades no Rio. Acervo Casa de Oswaldo Cruz/Agência Senado.",text:"O governo suspendeu a obrigatoriedade da vacina, decretou estado de sítio e reprimiu os participantes. Muitos presos foram enviados para regiões distantes, sem amplo direito de defesa.",lens:[["Saldo","Mais de 900 presos, cerca de 110 feridos e 30 mortos."],["Desfecho","A obrigatoriedade foi revogada naquele momento."],["Permanência","A desigualdade política e urbana não terminou com a revolta."]],tip:"O fim da obrigatoriedade não significou vitória completa nem ampliação imediata da cidadania."}],
+questions:[
+q("A Revolta da Vacina ocorreu principalmente entre:",["10 e 16 de novembro de 1904","1889 e 1891","1930 e 1932","1964 e 1968"],0,"Os confrontos concentraram-se em novembro de 1904."),
+q("A diversidade dos participantes permite afirmar que a revolta:",["reuniu interesses populares, políticos e militares distintos","foi organizada por um único partido operário","teve apenas motivação religiosa","não envolveu trabalhadores urbanos"],0,"A mobilização foi heterogênea e multicausal."),
+q("O bonde tombado é uma fonte que evidencia:",["a ocupação e transformação das ruas em espaço de confronto","a tranquilidade da cidade durante a campanha","a ausência de transporte público","a inauguração da Avenida Central"],0,"Bondes e trilhos foram usados nas barricadas."),
+q("Depois da revolta, o governo:",["revogou a obrigatoriedade naquele momento e ampliou a repressão com estado de sítio","aboliu todas as campanhas sanitárias","entregou o governo aos manifestantes","criou voto universal imediato"],0,"A suspensão da obrigatoriedade veio acompanhada de forte repressão."),
+q("A expressão “Quebra-Lampiões” relaciona-se:",["às ações de rua contra equipamentos e símbolos da ordem urbana","à instalação de iluminação elétrica nas favelas","à campanha contra a febre amarela","à construção de hospitais"],0,"O nome remete à destruição de elementos da cidade durante os confrontos.")
+]},
+{id:"historiadores",title:"Três historiadores, três lentes",label:"Interpretações",intro:"Compare explicações e aprenda a lidar com debates historiográficos.",accent:"#305e71",max:15,pages:[
+{t:"Nicolau Sevcenko",img:A+"pendendo.jpg",cap:"Charge política sobre as tensões sociais da modernização. Fonte presente no material didático fornecido.",text:"Sevcenko enfatiza a reforma como parte de um projeto violento de modernização. A revolta seria uma resposta ao avanço de uma ordem burguesa que alterava rapidamente a vida dos grupos populares.",lens:[["Foco","Modernização autoritária e resistência social."],["Palavra-chave","Violência do projeto civilizador."],["Na prova","Associe Sevcenko ao conflito entre modernização e experiência popular."]]},
+{t:"José Murilo de Carvalho",img:A+"carro-vacina.jpg",cap:"Charge sobre a vacina obrigatória publicada em 1904. Revista O Malho.",text:"José Murilo destaca a violação da liberdade individual, da honra e do espaço doméstico. A República exigia obediência, mas oferecia pouca participação política e poucos direitos efetivos.",lens:[["Foco","Cidadania incompleta."],["Espaço doméstico","A casa era entendida como lugar de honra e proteção familiar."],["Na prova","Associe o autor à relação entre direitos, República e população."]]},
+{t:"Sidney Chalhoub",img:A+"morro-providencia.png",cap:"Morro da Providência, identificado historicamente com o antigo Morro da Favella. Registro presente no material didático.",text:"Chalhoub valoriza experiências culturais e memórias de longa duração. A desconfiança diante do Estado e da vacinação também se relacionava às tradições da população negra e às violências sofridas desde o período escravista.",lens:[["Foco","Cultura, experiência e desconfiança histórica."],["Longa duração","A escravidão deixou marcas nas relações com o poder público."],["Na prova","Não reduza cultura a atraso; ela expressa experiências históricas."]],tip:"Interpretações historiográficas podem ser diferentes sem serem necessariamente incompatíveis."}],
+questions:[
+q("A interpretação de Nicolau Sevcenko destaca:",["a resistência popular diante de uma modernização autoritária","apenas a eficiência técnica da vacina","a inexistência de conflitos urbanos","o apoio unânime às reformas"],0,"Sevcenko relaciona a revolta à violência do projeto de modernização."),
+q("José Murilo de Carvalho enfatiza:",["a violação da liberdade, da honra doméstica e os limites da cidadania republicana","somente as tradições religiosas africanas","a construção da Avenida Central como obra artística","a política externa brasileira"],0,"Sua leitura aproxima a revolta da ausência de uma cidadania efetiva."),
+q("Na abordagem de Sidney Chalhoub, a resistência também se relaciona:",["a tradições culturais e experiências históricas de desconfiança do Estado","à recusa universal de qualquer medicina","ao apoio dos moradores às invasões domiciliares","à inexistência de memória da escravidão"],0,"Chalhoub considera experiências culturais e históricas, especialmente da população negra."),
+q("Comparar interpretações historiográficas serve para:",["perceber diferentes problemas e argumentos construídos sobre o mesmo processo","descobrir qual historiador memorizou mais datas","eliminar a necessidade de analisar fontes","provar que nenhuma explicação histórica é possível"],0,"A historiografia formula questões distintas e sustenta argumentos com evidências."),
+q("A melhor relação entre as três interpretações é:",["elas iluminam dimensões sociais, políticas e culturais de um processo multicausal","elas repetem exatamente a mesma explicação","apenas uma pode ser historicamente válida","nenhuma considera a ação do Estado"],0,"As lentes podem se complementar na compreensão da complexidade da revolta.")
+]},
+{id:"legado",title:"O legado urbano",label:"Progresso para quem?",intro:"Favelização, segregação, permanências e parecer histórico final.",accent:"#7d5425",max:25,pages:[
+{t:"A cidade sobe o morro",img:A+"morro-providencia.png",cap:"Vista histórica do Morro da Providência e de ocupações populares no Rio de Janeiro.",text:"Sem alternativa de moradia, trabalhadores ocuparam morros e áreas periféricas. O Morro da Providência, associado ao nome Favella, tornou-se símbolo de um processo mais amplo de favelização.",lens:[["Favelização","Expansão de moradias autoconstruídas em áreas desassistidas."],["Segregação espacial","Desigualdades sociais tornam-se visíveis na organização da cidade."],["Permanência","A separação entre cidade valorizada e territórios precarizados atravessa o tempo."]],tip:"Relacione o legado urbano às decisões políticas do período, sem tratar a favela como resultado de uma suposta escolha cultural dos moradores."},
+{t:"Duas cidades",img:A+"demolicao.jpg",cap:"Registro de demolições e remodelação do centro do Rio. Fotografia atribuída a Augusto Malta.",text:"Lima Barreto descreveu ironicamente uma cidade europeia e outra esquecida. A imagem das “duas cidades” ajuda a compreender reformas que concentraram investimentos em áreas valorizadas e deslocaram problemas para outros territórios.",lens:[["Gentrificação","Valorização de uma área que expulsa ou dificulta a permanência de grupos de menor renda."],["Direito à cidade","Acesso à moradia, serviços, circulação, cultura e decisões sobre o espaço urbano."],["Parecer final","A modernização produziu avanços materiais e sanitários, mas também exclusão e violência."]],trap:"Evite anacronismo: compare passado e presente reconhecendo diferenças de contexto."},
+{t:"Síntese de vestibular",img:A+"obras-centro.jpg",cap:"Obras de remodelação do centro carioca durante a administração Pereira Passos.",text:"A Revolta da Vacina não foi simples rejeição da ciência. Ela ocorreu em uma cidade marcada por epidemias reais, reformas coercivas, demolições, desigualdade, pouca participação cidadã e desconfiança histórica do Estado.",lens:[["Tese forte","Ciência necessária e política autoritária coexistiram."],["Causa múltipla","Moradia, direitos, cultura, política e saúde se combinaram."],["Consequência","A cidade modernizada permaneceu profundamente desigual."]],tip:"Quando duas alternativas parecem corretas, prefira a que explica mais dimensões sem negar as evidências."}],
+questions:[
+q("A relação entre bota-abaixo e favelização pode ser explicada porque:",["as demolições expulsaram moradores sem criar habitação suficiente, estimulando ocupações em morros e periferias","a prefeitura obrigou as elites a viver nos morros","as reformas distribuíram terras igualmente","os cortiços foram preservados como patrimônio"],0,"O deslocamento forçado e a falta de políticas habitacionais favoreceram novas ocupações."),
+q("O conceito de segregação espacial indica:",["a distribuição desigual de grupos, serviços e oportunidades no espaço urbano","a existência de ruas com nomes diferentes","a circulação livre de todos pelos mesmos espaços","a ausência de desigualdade entre bairros"],0,"A desigualdade social também se materializa no território."),
+q("A melhor tese sobre a Revolta da Vacina é:",["ela resultou da combinação entre coerção estatal, reformas excludentes, desconfiança e limites da cidadania","ela foi causada exclusivamente pela ignorância científica","ela ocorreu apenas por disputa entre médicos","ela rejeitava qualquer forma de saneamento"],0,"A interpretação multicausal incorpora as diferentes evidências examinadas."),
+q("Reconhecer que a vacina era eficaz e criticar sua aplicação coerciva significa:",["distinguir conhecimento científico de decisões políticas autoritárias","negar a importância da saúde pública","defender epidemias","afirmar que nenhuma regra coletiva é legítima"],0,"Uma análise histórica pode defender a ciência e questionar violações de direitos."),
+q("A expressão “uma cidade para poucos” resume:",["a concentração dos benefícios da modernização e a exclusão de grupos populares","a ausência de qualquer obra urbana","a igualdade de acesso à Avenida Central","o fim das diferenças entre centro e periferia"],0,"O embelezamento e os investimentos não alcançaram todos de maneira igual."),
+q("Ao relacionar as reformas de 1904 à gentrificação atual, é correto:",["comparar mecanismos de valorização e expulsão, preservando as diferenças históricas","afirmar que os dois períodos são idênticos","ignorar o papel do mercado imobiliário","usar o presente para substituir a análise das fontes"],0,"A comparação histórica exige semelhanças e diferenças."),
+q("As fotografias de Augusto Malta devem ser analisadas como:",["registros valiosos produzidos em um contexto institucional e com escolhas de enquadramento","imagens totalmente neutras e sem autoria","provas de que todos apoiavam as reformas","documentos incapazes de informar sobre a cidade"],0,"Fotografias registram o real, mas também resultam de escolhas e finalidades."),
+q("O direito à cidade envolve:",["moradia, serviços, circulação e participação nas decisões urbanas","apenas a construção de avenidas monumentais","o afastamento obrigatório dos trabalhadores","a proibição de manifestações públicas"],0,"O conceito reúne acesso ao espaço urbano e capacidade de participar de sua produção.")
+]}];
+
+const BLOCKED=["palavrao","idiota","otario","otaria","burro","burra","merda","bosta","porra","caralho","puta","puto","fdp","cuzao","cuzona","desgraca","vagabundo","vagabunda"];
+const state={name:"",className:"",attemptId:"",score:0,completed:{},stageScores:{},startedAt:0,current:null,questions:[],qIndex:0,currentScore:0};
+const sound={enabled:true,ctx:null,ensure(){if(!this.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return false;this.ctx=new C()}if(this.ctx.state==="suspended")this.ctx.resume();return true},tone(f,d=.08,type="triangle",v=.025,delay=0){if(!this.enabled||!this.ensure())return;const n=this.ctx.currentTime+delay,o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(.0001,n);g.gain.exponentialRampToValueAtTime(v,n+.01);g.gain.exponentialRampToValueAtTime(.0001,n+d);o.connect(g);g.connect(this.ctx.destination);o.start(n);o.stop(n+d+.03)},click(){this.tone(520,.05,"triangle",.014)},ok(){this.tone(523,.12);this.tone(659,.14,"triangle",.03,.07);this.tone(784,.18,"triangle",.03,.14)},bad(){this.tone(190,.16,"sawtooth",.02);this.tone(145,.2,"triangle",.025,.09)},async music(restart=false){if(!this.enabled)return;const a=document.getElementById("ambientMusic");a.volume=.12;if(restart)a.currentTime=0;try{await a.play();document.getElementById("soundBtn").textContent="ON"}catch(error){document.getElementById("soundBtn").textContent="PLAY"}},pause(){document.getElementById("ambientMusic").pause();document.getElementById("soundBtn").textContent=this.enabled?"SOM":"OFF"}};
+function toggleSound(event){event?.stopPropagation();sound.enabled=!sound.enabled;if(sound.enabled){sound.click();sound.music()}else sound.pause()}
+document.addEventListener("click",event=>{const b=event.target.closest("button,.btn");if(b&&b.id!=="soundBtn"&&!b.classList.contains("answer"))sound.click()});
+function showOnly(id){["splash","register","app"].forEach(x=>document.getElementById(x).style.display=x===id?(x==="app"?"block":"flex"):"none")}
+function showRegister(){sound.music(true);showOnly("register")}
+function clean(value){return String(value||"").replace(/[<>]/g,"").replace(/\s+/g," ").trim().slice(0,40)}
+function normalize(value){return String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"")}
+function esc(value){return String(value??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]))}
+function shuffle(items){const result=[...items];for(let i=result.length-1;i;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]]}return result}
+async function validateName(value){const name=clean(value),key=normalize(name);if(name.length<3)return{ok:false,message:"Digite um nome com pelo menos 3 letras. Nomes como Ana são aceitos."};if(BLOCKED.some(word=>key.includes(normalize(word))))return{ok:false,message:"Esse nome não pode ser utilizado."};if(db)try{const snap=await db.ref(`${DB_ROOT}/moderacao/nomesBloqueados/${key}`).once("value");if(snap.exists())return{ok:false,message:"Esse nome foi bloqueado pelo professor."}}catch(error){}return{ok:true,name}}
+async function startGame(){const warn=document.getElementById("warn"),raw=document.getElementById("name").value,turma=document.getElementById("class").value;if(!raw.trim()||!turma){warn.textContent="Digite seu nome e selecione a turma.";warn.style.display="block";return}warn.textContent="Verificando identificação...";warn.style.display="block";const result=await validateName(raw);if(!result.ok){warn.textContent=result.message;return}warn.style.display="none";Object.assign(state,{name:result.name,className:turma,attemptId:db?db.ref(`${DB_ROOT}/rankings/${GAME_ID}`).push().key:`local-${Date.now()}`,score:0,completed:{},stageScores:{},startedAt:Date.now(),current:null,questions:[],qIndex:0,currentScore:0});showOnly("app");openCity();registerGame()}
+function level(score){if(score>=90)return"Intérprete da cidade";if(score>=70)return"Analista republicano";if(score>=50)return"Leitor de fontes";if(score>=25)return"Caminhante urbano";return"Observador"}
+function openCity(){document.getElementById("menuView").style.display="block";document.getElementById("stageView").style.display="none";renderCity();updateHud();scrollTo(0,0);sound.music()}
+function renderCity(){const count=Object.keys(state.completed).length;document.getElementById("progress").innerHTML=`${Math.round(count/6*100)}%<br>percorrido`;const map=document.getElementById("cityMap"),route=map.querySelector(".route").outerHTML;map.innerHTML=route+STAGES.map((stage,index)=>{const locked=index===5&&count<5,done=state.completed[stage.id];return`<button class="district ${locked?"locked":""} ${done?"done":""}" style="--accent:${stage.accent}" data-label="${esc(stage.title)}" ${locked?"disabled":""} onclick="openStage('${stage.id}')">${index+1}<span class="hide">${stage.label}</span></button>`}).join("")}
+function updateHud(){document.getElementById("hudScore").textContent=state.score;document.getElementById("hudStages").textContent=`${Object.keys(state.completed).length}/6`;document.getElementById("hudLevel").textContent=level(state.score)}
+function openStage(id){const stage=STAGES.find(item=>item.id===id);state.current=stage;document.documentElement.style.setProperty("--accent",stage.accent);document.getElementById("menuView").style.display="none";document.getElementById("stageView").style.display="block";document.getElementById("stageKicker").textContent=`Distrito ${STAGES.indexOf(stage)+1} · ${stage.max} pontos`;document.getElementById("stageTitle").textContent=stage.title;document.getElementById("stageIntro").textContent=stage.intro;renderArchive(stage);state.questions=shuffle(stage.questions).slice(0,stage.max/5);state.qIndex=0;state.currentScore=0;document.getElementById("quizArea").classList.remove("hide");document.getElementById("complete").classList.add("hide");renderQuestion();scrollTo(0,0)}
+function renderArchive(stage){document.getElementById("archiveNav").innerHTML=stage.pages.map((page,index)=>`<button class="archive-tab ${index?"":"active"}" onclick="selectPage(${index},this)">${index+1}. ${page.t}</button>`).join("");document.getElementById("archivePages").innerHTML=stage.pages.map((page,index)=>`<section class="source ${index?"":"active"}"><h3>${page.t}</h3><button class="source-image" onclick="openImage('${page.img}','${encodeURIComponent(page.t)}','${encodeURIComponent(page.cap)}')" title="Ampliar fonte"><img src="${page.img}" alt="${esc(page.t)}"><span>CLIQUE PARA AMPLIAR</span></button><div class="caption">${page.cap}</div><p>${page.text}</p>${page.lens?`<div class="lens">${page.lens.map(item=>`<div><b>${item[0]}</b>${item[1]}</div>`).join("")}</div>`:""}${page.tip?`<div class="exam-tip"><b>Como isso cai na prova:</b> ${page.tip}</div>`:""}${page.trap?`<div class="trap"><b>Armadilha de alternativa:</b> ${page.trap}</div>`:""}</section>`).join("")}
+function selectPage(index,button){document.querySelectorAll(".archive-tab").forEach(item=>item.classList.remove("active"));button.classList.add("active");document.querySelectorAll(".source").forEach((item,i)=>item.classList.toggle("active",i===index))}
+function showSupport(){document.getElementById("archive").scrollIntoView({behavior:"smooth"})}
+function renderQuestion(){const question=state.questions[state.qIndex],options=shuffle(question.ops.map((text,index)=>({text,correct:index===question.ok})));document.getElementById("qProgress").textContent=`QUESTÃO ${state.qIndex+1} DE ${state.questions.length} · ${state.currentScore} PONTOS`;document.getElementById("question").textContent=question.text;document.getElementById("answers").innerHTML=options.map(option=>`<button class="answer" onclick="answer(this,${option.correct})">${esc(option.text)}</button>`).join("");document.getElementById("feedback").className="feedback";document.getElementById("nextBtn").classList.add("hide")}
+function answer(button,correct){const question=state.questions[state.qIndex],buttons=[...document.querySelectorAll(".answer")];buttons.forEach(item=>item.disabled=true);if(correct){sound.ok();state.currentScore+=5;button.classList.add("correct")}else{sound.bad();button.classList.add("wrong");buttons.find(item=>item.textContent===question.ops[question.ok])?.classList.add("correct")}const feedback=document.getElementById("feedback");feedback.className=`feedback show ${correct?"ok":"bad"}`;feedback.innerHTML=`<b>${correct?"Resposta correta.":"Observe a alternativa destacada."}</b><br>${question.exp}`;const next=document.getElementById("nextBtn");next.textContent=state.qIndex===state.questions.length-1?"Concluir distrito":"Próxima questão";next.classList.remove("hide")}
+function nextQuestion(){if(state.qIndex<state.questions.length-1){state.qIndex++;renderQuestion();return}document.getElementById("quizArea").classList.add("hide");document.getElementById("complete").classList.remove("hide");document.getElementById("stageScore").textContent=`${state.currentScore}/${state.current.max}`;document.getElementById("completeText").textContent="Seu resultado será registrado. Um distrito iniciado e não concluído não concede pontos."}
+async function finishStage(){const id=state.current.id;if(!state.completed[id]){state.completed[id]=true;state.stageScores[id]=state.currentScore;state.score=Object.values(state.stageScores).reduce((sum,value)=>sum+value,0);await saveAttempt()}openCity();if(Object.keys(state.completed).length===6){document.getElementById("finalScore").textContent=state.score;document.getElementById("finalLevel").textContent=level(state.score);document.getElementById("finalModal").classList.add("open")}}
+function returnMenu(){openCity()}
+async function registerGame(){if(!db)return;try{await db.ref(`${DB_ROOT}/jogos/${GAME_ID}`).update({titulo:GAME_TITLE,slug:GAME_ID,categoria:"História",ativo:true,pontuacaoMaxima:100,etapas:6,atualizadoEm:firebase.database.ServerValue.TIMESTAMP})}catch(error){}}
+async function saveAttempt(){const now=new Date(),record={nome:state.name,turma:state.className,pontos:state.score,nivel:level(state.score),data:now.toLocaleString("pt-BR"),jogoId:GAME_ID,jogoTitulo:GAME_TITLE,nomeNormalizado:normalize(state.name),visivel:true,etapasConcluidas:Object.keys(state.completed),quantidadeEtapas:Object.keys(state.completed).length,pontuacaoPorEtapa:state.stageScores,duracaoSegundos:Math.max(1,Math.round((Date.now()-state.startedAt)/1000)),criadoEm:state.startedAt,atualizadoEm:db?firebase.database.ServerValue.TIMESTAMP:Date.now()};if(db)try{await db.ref(`${DB_ROOT}/rankings/${GAME_ID}/${state.attemptId}`).set(record);return}catch(error){}const key=`${GAME_ID}-ranking`,list=JSON.parse(localStorage.getItem(key)||"[]"),index=list.findIndex(item=>item.id===state.attemptId),local={id:state.attemptId,...record,atualizadoEm:Date.now()};if(index>=0)list[index]=local;else list.push(local);localStorage.setItem(key,JSON.stringify(list))}
+async function loadRanking(){let rows=[];if(db)try{const [ranking,blockedSnap]=await Promise.all([db.ref(`${DB_ROOT}/rankings/${GAME_ID}`).once("value"),db.ref(`${DB_ROOT}/moderacao/nomesBloqueados`).once("value")]),blocked=blockedSnap.val()||{};ranking.forEach(child=>{const value=child.val();if(value.visivel!==false&&!blocked[normalize(value.nome)])rows.push({id:child.key,...value})});return rows}catch(error){}try{return JSON.parse(localStorage.getItem(`${GAME_ID}-ranking`)||"[]")}catch(error){return[]}}
+async function openRanking(){document.getElementById("rankingModal").classList.add("open");const box=document.getElementById("rankingContent");box.innerHTML='<div style="padding:22px;text-align:center">Carregando...</div>';const rows=(await loadRanking()).sort((a,b)=>(b.pontos||0)-(a.pontos||0)||(b.quantidadeEtapas||0)-(a.quantidadeEtapas||0)||(a.duracaoSegundos||Number.MAX_SAFE_INTEGER)-(b.duracaoSegundos||Number.MAX_SAFE_INTEGER));if(!rows.length){box.innerHTML='<div style="padding:22px;text-align:center">Nenhuma tentativa registrada.</div>';return}box.innerHTML=`<table><thead><tr><th>#</th><th>Estudante</th><th>Turma</th><th>Pontos</th><th>Distritos</th><th>Nível</th><th>Atualização</th></tr></thead><tbody>${rows.slice(0,200).map((row,index)=>`<tr class="${row.id===state.attemptId?"me":""}"><td>${index+1}</td><td>${esc(row.nome)}</td><td>${esc(row.turma)}</td><td><b>${row.pontos||0}</b></td><td>${row.quantidadeEtapas||0}/6</td><td>${esc(row.nivel||"")}</td><td>${esc(row.data||"")}</td></tr>`).join("")}</tbody></table>`}
+function openGuide(){document.getElementById("guideModal").classList.add("open")}
+function openImage(src,title,caption){document.getElementById("lightboxImage").src=src;document.getElementById("lightboxTitle").textContent=decodeURIComponent(title);document.getElementById("lightboxCaption").textContent=decodeURIComponent(caption);document.getElementById("imageModal").classList.add("open")}
+function closeModal(id){document.getElementById(id).classList.remove("open")}
+showOnly("splash");
+</script>
+</body>
+</html>
