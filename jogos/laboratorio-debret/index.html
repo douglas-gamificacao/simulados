@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#18231f">
+  <title>Laboratório Debret | Gamificação Total</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <button id="soundBtn" class="sound-btn" type="button" onclick="toggleSound()" title="Ativar ou silenciar a trilha">♪</button>
+
+  <section id="splash" class="screen splash">
+    <div class="splash-art" aria-hidden="true">
+      <img src="assets/jantar-brasileiro.webp" alt="">
+      <div class="loupe"></div>
+    </div>
+    <div class="hero-copy">
+      <img class="logo" src="assets/logo.webp" alt="Gamificação Total">
+      <p class="kicker light">Perícia visual · Brasil do século XIX · Vestibular</p>
+      <h1>Laboratório <span>Debret</span></h1>
+      <h2>Imagem sob suspeita</h2>
+      <p class="lead">As obras chegaram ao laboratório. Observe pistas, confronte interpretações e descubra o que elas revelam e escondem sobre a sociedade brasileira.</p>
+      <div class="signature">PROF. DOUGLAS SOUSA</div>
+      <button class="btn primary" type="button" onclick="showRegister()">Abrir o dossiê</button>
+    </div>
+  </section>
+
+  <section id="register" class="screen register">
+    <div class="file-sheet">
+      <div class="file-tab">ARQUIVO 1816–1834</div>
+      <p class="kicker">Nova investigação</p>
+      <h2>Identificação do perito</h2>
+      <p>Cada entrada começa com zero ponto. Os subsídios necessários para responder estão nas pranchas de análise e cada etapa concluída será salva no ranking.</p>
+      <div class="form-grid">
+        <label>Nome do estudante<input id="studentName" maxlength="40" autocomplete="name" placeholder="Digite seu nome"></label>
+        <label>Série / turma<select id="studentClass">
+          <option value="">Selecione</option><option>6º ano</option><option>7º ano</option><option>8º ano</option><option>9º ano</option>
+          <option>1ª série</option><option>2ª série</option><option>3ª série</option><option>Visitante externo</option>
+        </select></label>
+      </div>
+      <div id="warning" class="warning"></div>
+      <div class="actions">
+        <button class="btn" type="button" onclick="showOnly('splash')">Voltar</button>
+        <button class="btn rust" type="button" onclick="startGame()">Iniciar perícia</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="app" class="screen app">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <img src="assets/logo.webp" alt="Gamificação Total">
+        <div class="hud">
+          <div><small>Pontos</small><b id="hudScore">0</b></div>
+          <div><small>Pranchas</small><b id="hudStages">0/5</b></div>
+          <div><small>Patente</small><b id="hudLevel">Observador</b></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section id="menuView">
+        <div class="board-head">
+          <div>
+            <p class="kicker">Mesa de investigação · Fontes em exame</p>
+            <h1>O olhar de Debret era neutro?</h1>
+            <p>Escolha uma pasta, examine as obras e formule interpretações apoiadas nas evidências. As cinco investigações estão disponíveis desde o início.</p>
+          </div>
+          <div class="meter"><strong id="progressValue">0%</strong><span>laudo concluído</span></div>
+        </div>
+        <div id="caseBoard" class="case-board"></div>
+        <div class="center-actions">
+          <button class="btn" type="button" onclick="openGuide()">Estratégia de prova</button>
+          <button class="btn ink" type="button" onclick="openRanking()">Ver ranking</button>
+        </div>
+      </section>
+
+      <section id="stageView" class="hidden">
+        <div class="stage-head">
+          <div><p id="stageKicker" class="kicker"></p><h1 id="stageTitle"></h1><p id="stageIntro"></p></div>
+          <button class="btn small" type="button" onclick="openMenu()">Voltar às pastas</button>
+        </div>
+        <div class="lab-grid">
+          <article class="evidence-panel">
+            <nav id="sourceTabs" class="source-tabs"></nav>
+            <div id="sourceContent"></div>
+          </article>
+          <aside class="question-panel">
+            <div id="quizArea">
+              <p id="questionProgress" class="kicker"></p>
+              <h2 id="questionText"></h2>
+              <div id="answers" class="answers"></div>
+              <div id="feedback" class="feedback"></div>
+              <button id="nextButton" class="btn primary hidden" type="button" onclick="nextQuestion()">Próxima questão</button>
+            </div>
+            <div id="stageComplete" class="stage-complete hidden">
+              <p class="kicker">Laudo finalizado</p>
+              <strong id="stageScore">0/20</strong>
+              <p>A pontuação desta pasta será registrada no ranking.</p>
+              <button class="btn primary" type="button" onclick="finishStage()">Arquivar laudo</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <div id="rankingModal" class="overlay">
+    <div class="modal wide">
+      <div class="modal-head"><div><p class="kicker">Classificação online</p><h2>Ranking de peritos</h2></div><button class="close" onclick="closeModal('rankingModal')">×</button></div>
+      <div id="rankingContent" class="ranking"></div>
+    </div>
+  </div>
+
+  <div id="guideModal" class="overlay">
+    <div class="modal">
+      <div class="modal-head"><div><p class="kicker">Vestibular</p><h2>Como interrogar uma imagem</h2></div><button class="close" onclick="closeModal('guideModal')">×</button></div>
+      <div class="guide">
+        <div><b>1. Identifique</b><span>Autor, data, suporte e contexto de produção.</span></div>
+        <div><b>2. Descreva</b><span>Personagens, gestos, objetos, espaços e relações.</span></div>
+        <div><b>3. Problematize</b><span>Quem observa? Quais valores orientam esse olhar?</span></div>
+        <div><b>4. Cruze fontes</b><span>Compare texto, imagem e releitura antes de concluir.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="imageModal" class="overlay" onclick="closeModal('imageModal')">
+    <div class="lightbox" onclick="event.stopPropagation()">
+      <div class="modal-head"><strong id="lightboxTitle"></strong><button class="close" onclick="closeModal('imageModal')">×</button></div>
+      <img id="lightboxImage" alt="Fonte histórica ampliada">
+      <p id="lightboxCaption"></p>
+    </div>
+  </div>
+
+  <div id="finalModal" class="overlay">
+    <div class="modal">
+      <div class="modal-head"><div><p class="kicker">Investigação encerrada</p><h2>Laudo entregue</h2></div><button class="close" onclick="closeModal('finalModal')">×</button></div>
+      <p>Você analisou Debret como fonte histórica, reconhecendo sua importância documental e também os limites de um olhar europeu marcado pelas hierarquias do século XIX.</p>
+      <div class="final-result"><strong id="finalScore">0</strong><span>pontos</span><b id="finalLevel">—</b></div>
+      <button class="btn primary" type="button" onclick="closeModal('finalModal');openRanking()">Ver classificação</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
