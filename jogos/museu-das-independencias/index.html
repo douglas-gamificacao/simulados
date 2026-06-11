@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Museu das Independências | Gamificação Total</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<button id="soundBtn" class="sound-btn" onclick="toggleSound(event)" title="Ativar ou silenciar a trilha">SOM</button>
+<audio id="ambientMusic" src="assets/trilha-museu.wav" loop preload="auto"></audio>
+
+<section id="splash" class="screen">
+  <div class="hero">
+    <div class="hero-copy">
+      <img class="logo" src="assets/logo.png" alt="Gamificação Total">
+      <div class="eyebrow light">História · Fontes · Memória · Vestibular</div>
+      <h1>Museu das <span>Independências</span></h1>
+      <p>Uma exposição está prestes a abrir. Compare pinturas, batalhas e documentos para contar uma Independência maior do que o Grito do Ipiranga.</p>
+      <div class="signature">PROF. DOUGLAS SOUSA</div><br>
+      <button class="btn gold" onclick="showRegister()">Entrar no museu</button>
+    </div>
+  </div>
+</section>
+
+<section id="register" class="screen">
+  <div class="register-sheet">
+    <div class="stamp">ACESSO DO CURADOR</div>
+    <div class="eyebrow">Nova exposição</div>
+    <h2>Identificação</h2>
+    <p>Cada entrada começa com zero ponto. Todas as informações necessárias estarão nas galerias, e cada sala concluída será registrada no ranking.</p>
+    <div class="form">
+      <label>Nome do estudante<input id="name" maxlength="40" placeholder="Digite seu nome"></label>
+      <label>Série / turma<select id="class"><option value="">Selecione</option><option>6º ano</option><option>7º ano</option><option>8º ano</option><option>9º ano</option><option>1ª série</option><option>2ª série</option><option>3ª série</option><option>Visitante externo</option></select></label>
+    </div>
+    <div id="warn" class="warn"></div>
+    <div class="actions"><button class="btn" onclick="showOnly('splash')">Voltar</button><button class="btn burgundy" onclick="startGame()">Abrir exposição</button></div>
+  </div>
+</section>
+
+<section id="app" class="screen">
+  <header class="topbar"><div class="topin"><img src="assets/logo.png" alt="Gamificação Total"><div class="hud"><div><small>Pontos</small><b id="hudScore">0</b></div><div><small>Galerias</small><b id="hudStages">0/5</b></div><div><small>Nível</small><b id="hudLevel">Visitante</b></div></div></div></header>
+  <main class="wrap">
+    <section id="menuView">
+      <div class="museum-head"><div><div class="eyebrow">Exposição em montagem · Brasil, 1808–1824</div><h1>Qual Independência será lembrada?</h1><p>Entre em cada galeria, examine o acervo e monte uma narrativa sustentada pelas fontes. As cinco salas estão disponíveis desde o início.</p></div><div class="progress-seal" id="progress">0%<br>inaugurado</div></div>
+      <div class="museum-hall" id="museumHall"></div>
+      <div class="center-actions"><button class="btn" onclick="openRanking()">Ver ranking</button><button class="btn forest" onclick="openGuide()">Como ler uma fonte</button></div>
+    </section>
+
+    <section id="stageView">
+      <div class="stage-head"><div><div id="stageKicker" class="eyebrow"></div><h1 id="stageTitle"></h1><p id="stageIntro"></p></div><button class="btn small" onclick="openMenu()">Voltar ao museu</button></div>
+      <div class="stage-layout">
+        <article class="collection"><div id="sourceNav" class="source-nav"></div><div id="sourcePages"></div></article>
+        <aside class="quiz">
+          <div id="quizArea"><div id="qProgress" class="qprogress"></div><h2 id="question"></h2><div id="answers" class="answers"></div><div id="feedback" class="feedback"></div><div class="quiz-actions"><button class="btn small" onclick="showSources()">Rever acervo</button><button id="nextBtn" class="btn small gold hide" onclick="nextQuestion()">Próxima questão</button></div></div>
+          <div id="complete" class="complete hide"><div class="eyebrow">Galeria concluída</div><div id="stageScore" class="score"></div><p>Sua curadoria será registrada no ranking.</p><button class="btn gold" onclick="finishStage()">Inaugurar sala</button></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+</section>
+
+<div id="rankingModal" class="overlay"><div class="modal"><div class="modal-top"><div><div class="eyebrow">Resultados online</div><h2>Ranking de curadores</h2></div><button class="close" onclick="closeModal('rankingModal')">X</button></div><div id="rankingContent" class="ranking"></div></div></div>
+<div id="guideModal" class="overlay"><div class="modal"><div class="modal-top"><div><div class="eyebrow">Estratégia de vestibular</div><h2>Quatro perguntas para toda fonte</h2></div><button class="close" onclick="closeModal('guideModal')">X</button></div><div class="guide-grid"><div><b>Quem produziu?</b>Identifique autoria, posição social e instituição.</div><div><b>Quando e por quê?</b>Uma imagem posterior ao fato também constrói memória.</div><div><b>O que aparece?</b>Observe protagonistas, gestos, símbolos e cenário.</div><div><b>O que foi silenciado?</b>Ausências também revelam escolhas e interesses.</div></div></div></div>
+<div id="finalModal" class="overlay"><div class="modal"><div class="modal-top"><div><div class="eyebrow">Exposição inaugurada</div><h2>Museu concluído</h2></div><button class="close" onclick="closeModal('finalModal')">X</button></div><p>Você construiu uma interpretação plural da Independência, conectando memória, conflitos regionais, participação popular e formação política do Império.</p><div class="final-grid"><div><b id="finalScore">0</b>pontos</div><div><b id="finalLevel">—</b>nível</div></div><button class="btn gold" onclick="closeModal('finalModal');openRanking()">Ver classificação</button></div></div>
+<div id="imageModal" class="overlay" onclick="closeModal('imageModal')"><div class="lightbox" onclick="event.stopPropagation()"><div class="lightbox-top"><strong id="lightboxTitle"></strong><button class="close" onclick="closeModal('imageModal')">X</button></div><img id="lightboxImage" alt="Fonte histórica ampliada"><div id="lightboxCaption"></div></div></div>
+
+<script src="game.js"></script>
+</body>
+</html>
