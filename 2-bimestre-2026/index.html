@@ -19,6 +19,8 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Nunito',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body.integrity-active, body.integrity-active *{-webkit-user-select:none;user-select:none;}
+body.integrity-active input, body.integrity-active textarea{-webkit-user-select:text;user-select:text;}
 
 /* ── SCREENS ── */
 .screen{display:none;min-height:100vh;flex-direction:column;align-items:center;}
@@ -84,6 +86,11 @@ p{font-size:.92rem;color:var(--muted);line-height:1.55;}
 .form-input:focus{border-color:var(--orange);}
 .error-msg{font-size:.82rem;color:var(--wrong);font-weight:700;display:none;}
 .error-msg.show{display:block;}
+.integrity-card{margin:10px 0 12px;padding:12px 14px;border-radius:12px;background:#fff7ed;border:2px solid #fed7aa;color:#9a3412;font-size:.8rem;font-weight:800;line-height:1.4;}
+.integrity-card strong{color:#7c2d12;}
+.integrity-chip{display:inline-block;padding:2px 8px;border-radius:999px;background:#ffedd5;color:#9a3412;font-size:.72rem;font-weight:900;}
+.integrity-chip.danger{background:#fee2e2;color:#b91c1c;}
+.integrity-chip.ok{background:#dcfce7;color:#15803d;}
 
 /* ── QUESTION CARD ── */
 .q-card{background:var(--white);border-radius:var(--r);padding:22px 20px;margin-bottom:16px;box-shadow:0 2px 12px rgba(16,18,43,.08);}
@@ -296,6 +303,12 @@ p{font-size:.92rem;color:var(--muted);line-height:1.55;}
         <div class="progress-bar"><div class="progress-fill" id="aval-progress" style="width:0%"></div></div>
       </div>
       <span style="font-size:.8rem;font-weight:700;color:var(--white);" id="aval-counter">0/0</span>
+    </div>
+  </div>
+  <div style="width:100%;max-width:720px;padding:0 12px;margin:0 auto;">
+    <div class="integrity-card" id="integrity-alert">
+      Modo integridade ativo: copiar, selecionar texto, botao direito e atalhos de captura/cola serao bloqueados quando possivel.
+      Mudancas de aba ou janela registradas: <strong id="integrity-tab-count">0</strong>.
     </div>
   </div>
   <div style="width:100%;max-width:720px;padding:0 12px 100px;margin:0 auto;" id="questoes-container"></div>
@@ -1229,8 +1242,96 @@ function dbOn(path, cb){
 let APP = {
   serie: null, turma: null, aluno: null,
   respostas: {}, finalizado: false,
-  tentativaAtual: 0, tentativasAnteriores: null, modoTeste: false
+  tentativaAtual: 0, tentativasAnteriores: null, modoTeste: false,
+  integridade: null
 };
+
+let ultimaSaidaIntegridade = 0;
+
+function criarIntegridade(){
+  return {
+    ativo: true,
+    inicio: Date.now(),
+    mudancasAba: 0,
+    bloqueios: { copiar:0, selecionar:0, menu:0, print:0, atalhos:0 },
+    eventos: []
+  };
+}
+
+function atualizarIntegridadeTela(){
+  const el = document.getElementById('integrity-tab-count');
+  if(el) el.textContent = APP.integridade?.mudancasAba || 0;
+}
+
+function registrarEventoIntegridade(tipo){
+  if(!APP.integridade || APP.finalizado || !document.getElementById('s-avaliacao')?.classList.contains('active')) return;
+  const agora = Date.now();
+  if(tipo === 'mudanca_aba'){
+    if(agora - ultimaSaidaIntegridade < 900) return;
+    ultimaSaidaIntegridade = agora;
+    APP.integridade.mudancasAba++;
+  } else if(APP.integridade.bloqueios[tipo] !== undefined) {
+    APP.integridade.bloqueios[tipo]++;
+  }
+  APP.integridade.eventos.push({
+    tipo,
+    momento: agora,
+    segundosDesdeInicio: Math.round((agora - APP.integridade.inicio) / 1000)
+  });
+  APP.integridade.eventos = APP.integridade.eventos.slice(-40);
+  atualizarIntegridadeTela();
+}
+
+function iniciarIntegridade(){
+  APP.integridade = criarIntegridade();
+  document.body.classList.add('integrity-active');
+  atualizarIntegridadeTela();
+}
+
+function encerrarIntegridade(){
+  if(APP.integridade) APP.integridade.ativo = false;
+  document.body.classList.remove('integrity-active');
+}
+
+function resumoIntegridade(){
+  const i = APP.integridade || criarIntegridade();
+  return {
+    mudancasAba: i.mudancasAba || 0,
+    bloqueios: i.bloqueios || {},
+    eventos: i.eventos || [],
+    inicio: i.inicio || Date.now(),
+    fim: Date.now(),
+    duracaoSegundos: i.inicio ? Math.round((Date.now() - i.inicio) / 1000) : 0
+  };
+}
+
+document.addEventListener('copy', e => {
+  if(APP.integridade && !APP.finalizado){ e.preventDefault(); registrarEventoIntegridade('copiar'); toast('Copia bloqueada durante a avaliacao.'); }
+});
+document.addEventListener('cut', e => {
+  if(APP.integridade && !APP.finalizado){ e.preventDefault(); registrarEventoIntegridade('copiar'); }
+});
+document.addEventListener('selectstart', e => {
+  if(APP.integridade && !APP.finalizado && !['INPUT','TEXTAREA'].includes(e.target.tagName)){ e.preventDefault(); registrarEventoIntegridade('selecionar'); }
+});
+document.addEventListener('contextmenu', e => {
+  if(APP.integridade && !APP.finalizado){ e.preventDefault(); registrarEventoIntegridade('menu'); toast('Menu de contexto bloqueado durante a avaliacao.'); }
+});
+document.addEventListener('keydown', e => {
+  if(!APP.integridade || APP.finalizado) return;
+  const key = String(e.key || '').toLowerCase();
+  const atalhoBloqueado = (e.ctrlKey || e.metaKey) && ['c','x','a','s','p','u'].includes(key);
+  const printScreen = key === 'printscreen' || e.code === 'PrintScreen';
+  if(atalhoBloqueado || printScreen){
+    e.preventDefault();
+    registrarEventoIntegridade(printScreen ? 'print' : 'atalhos');
+    toast(printScreen ? 'Captura de tela bloqueada quando o navegador permite.' : 'Atalho bloqueado durante a avaliacao.');
+  }
+});
+window.addEventListener('blur', () => registrarEventoIntegridade('mudanca_aba'));
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden) registrarEventoIntegridade('mudanca_aba');
+});
 
 // ════════════════════════════════════════════
 //  NAVEGAÇÃO
@@ -1396,6 +1497,7 @@ async function verificarSenha(){
 function iniciarAvaliacao(){
   APP.respostas = {};
   APP.finalizado = false;
+  iniciarIntegridade();
   const qs = QUESTOES[APP.serie] || [];
   const conf = SERIES_CONFIG[APP.serie];
 
@@ -1515,7 +1617,9 @@ async function enviarRespostas(){
     let acertos2 = 0;
     qs2.forEach((q,i) => { if(APP.respostas[i] === q.gab) acertos2++; });
     const nota2 = qs2.length > 0 ? parseFloat((acertos2/qs2.length*10).toFixed(1)) : 0;
-    const testeDados = { totalTentativas:1, melhorNota:nota2, tentativas:{ '1':{ respostas:APP.respostas, acertos:acertos2, total:qs2.length, nota:nota2, timestamp:Date.now() } }, aluno:APP.aluno.nome };
+    const integridadeTeste = resumoIntegridade();
+    encerrarIntegridade();
+    const testeDados = { totalTentativas:1, melhorNota:nota2, tentativas:{ '1':{ respostas:APP.respostas, acertos:acertos2, total:qs2.length, nota:nota2, timestamp:Date.now(), integridade:integridadeTeste } }, aluno:APP.aluno.nome };
     mostrarResultado(testeDados, true);
     return;
   }
@@ -1538,8 +1642,9 @@ async function enviarRespostas(){
     const tentNum = (prevData.totalTentativas || 0) + 1;
     const melhorNota = Math.max(nota, prevData.melhorNota ?? 0);
 
+    const integridade = resumoIntegridade();
     const tentativa = { respostas: APP.respostas, acertos, total, nota,
-      aluno: APP.aluno.nome, turma: APP.turma, timestamp: Date.now() };
+      aluno: APP.aluno.nome, turma: APP.turma, timestamp: Date.now(), integridade };
 
     const updates = {};
     updates[`${DB_ROOT}/${alunoPath}/tentativas/${tentNum}`] = tentativa;
@@ -1552,6 +1657,7 @@ async function enviarRespostas(){
 
     APP.tentativaAtual = tentNum;
     APP.finalizado = true;
+    encerrarIntegridade();
 
     const ordinals = ['','1ª','2ª','3ª','4ª','5ª','6ª','7ª','8ª','9ª','10ª'];
     const ordinal = ordinals[tentNum] || `${tentNum}ª`;
@@ -1848,6 +1954,7 @@ async function carregarResultadosSerie(serie){
         const cls = melhor>=7?'nota-verde':melhor>=5?'nota-amarela':'nota-vermelha';
         const hist = Object.keys(r.tentativas||{}).sort((a,b)=>+a-+b)
           .map(k=>(r.tentativas[k].nota??0).toFixed(1)).join(' → ');
+        const integridadeHtml = formatarIntegridade(r.tentativas || {});
         const nomeCell = isTeste
           ? `${a.nome} <span style="font-size:.68rem;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:4px;font-weight:700;">teste</span>`
           : a.nome;
@@ -1856,6 +1963,7 @@ async function carregarResultadosSerie(serie){
           <td style="text-align:center;font-weight:700">${nt}</td>
           <td><span class="nota-badge ${cls}">${melhor.toFixed(1)}</span>${isTeste?' <span style="font-size:.68rem;color:var(--muted);">(não conta)</span>':''}</td>
           <td style="font-size:.75rem;color:var(--muted);">${hist}</td>
+          <td>${integridadeHtml}</td>
         </tr>`;
       } else {
         if(isTeste) return;
@@ -1863,6 +1971,7 @@ async function carregarResultadosSerie(serie){
           <td style="font-weight:700">${a.nome}</td>
           <td style="text-align:center;color:var(--neutral)">0</td>
           <td><span class="nota-badge" style="background:var(--gray);color:var(--muted)">Não fez</span></td>
+          <td></td>
           <td></td>
         </tr>`;
       }
@@ -1877,7 +1986,7 @@ async function carregarResultadosSerie(serie){
         </div>
         <div style="overflow-x:auto;">
           <table class="result-table">
-            <thead><tr><th>Aluno(a)</th><th style="text-align:center">Tentativas</th><th>Melhor nota</th><th>Histórico</th></tr></thead>
+            <thead><tr><th>Aluno(a)</th><th style="text-align:center">Tentativas</th><th>Melhor nota</th><th>Histórico</th><th>Integridade</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
@@ -1892,6 +2001,22 @@ async function carregarResultadosSerie(serie){
       <span style="font-size:.78rem;color:var(--muted);">(${countSerie} aluno(s) que fizeram)</span>
     </div>
     ${html}`;
+}
+
+function formatarIntegridade(tentativas){
+  const lista = Object.keys(tentativas||{}).sort((a,b)=>+a-+b).map(k => tentativas[k]?.integridade || {});
+  if(!lista.length) return '<span class="integrity-chip ok">sem dados</span>';
+  const totalAba = lista.reduce((s,i)=>s+(i.mudancasAba||0),0);
+  const totalBloqueios = lista.reduce((s,i)=>{
+    const b = i.bloqueios || {};
+    return s + Object.values(b).reduce((a,v)=>a+(Number(v)||0),0);
+  },0);
+  const ultima = lista[lista.length-1] || {};
+  const classe = totalAba >= 3 ? 'danger' : (totalAba > 0 || totalBloqueios > 0 ? '' : 'ok');
+  return `<span class="integrity-chip ${classe}">${totalAba} troca(s)</span>
+    <span style="font-size:.7rem;color:var(--muted);display:block;margin-top:3px;">
+      Última: ${ultima.mudancasAba||0} · bloqueios: ${totalBloqueios}
+    </span>`;
 }
 
 // ════════════════════════════════════════════
