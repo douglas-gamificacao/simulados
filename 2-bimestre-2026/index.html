@@ -2146,7 +2146,7 @@ function loadRevisaoSerie(serie){
       imgHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +
         urls.map(url =>
           `<img src="${url}" alt="Q${q.n}" style="max-height:200px;max-width:100%;border-radius:8px;border:1px solid var(--gray);cursor:zoom-in;" onclick="abrirLightbox(this.src)"
-            onerror="this.parentElement.innerHTML='<span class=\'q-img-link\'>Imagem indisponivel no material de apoio</span>'">
+            onerror="this.parentElement.innerHTML='<span class=\'q-img-link\'>Imagem indisponivel no material de apoio</span>'">`
         ).join('') + '</div>';
     }
 
